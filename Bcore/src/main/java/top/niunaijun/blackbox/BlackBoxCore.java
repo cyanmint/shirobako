@@ -1001,6 +1001,14 @@ public class BlackBoxCore extends ClientConfiguration {
         // Install system hooks to prevent crashes
         installSystemHooks();
         
+        // Initialize QEMU manager for cross-architecture support
+        try {
+            top.niunaijun.blackbox.core.QemuManager.getInstance().init(getContext());
+            Slog.d(TAG, "QEMU Manager initialized successfully");
+        } catch (Exception e) {
+            Slog.w(TAG, "Failed to initialize QEMU Manager: " + e.getMessage());
+        }
+        
         // Set a timeout for the entire initialization process
         long startTime = System.currentTimeMillis();
         long maxInitTime = 10000; // 10 seconds max

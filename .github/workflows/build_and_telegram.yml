@@ -28,6 +28,17 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses || true
 
+      - name: Download QEMU and Runtime Assets
+        run: |
+          chmod +x scripts/download-assets.sh
+          bash scripts/download-assets.sh
+        
+      - name: Verify Downloaded Assets
+        run: |
+          echo "Checking downloaded assets..."
+          find Bcore/src/main/assets/qemu -type f -name "qemu-*" || echo "No QEMU binaries found"
+          find Bcore/src/main/assets/runtime -type f ! -name ".gitkeep" || echo "No runtime libraries found"
+
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 

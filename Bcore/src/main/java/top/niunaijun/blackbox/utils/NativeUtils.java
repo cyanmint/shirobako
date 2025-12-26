@@ -11,8 +11,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Enumeration;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import top.niunaijun.blackbox.core.QemuManager;
 
 
 /**
@@ -32,10 +35,34 @@ public class NativeUtils {
             nativeLibDir.mkdirs();
         }
         try (ZipFile zipfile = new ZipFile(apk.getAbsolutePath())) {
+            // Try native architecture first
             if (findAndCopyNativeLib(zipfile, Build.CPU_ABI, nativeLibDir)) {
                 return;
             }
+            
+            // Try all supported ABIs with QEMU fallback
+            QemuManager qemuManager = QemuManager.getInstance();
+            if (qemuManager.isInitialized()) {
+                Set<String> nativeAbis = qemuManager.getNativeSupportedAbis();
+                for (String abi : nativeAbis) {
+                    if (findAndCopyNativeLib(zipfile, abi, nativeLibDir)) {
+                        return;
+                    }
+                }
+                
+                // Try emulated ABIs (with QEMU support)
+                Set<String> emulatedAbis = qemuManager.getEmulatedAbis();
+                for (String abi : emulatedAbis) {
+                    if (qemuManager.isQemuAvailable(abi)) {
+                        if (findAndCopyNativeLib(zipfile, abi, nativeLibDir)) {
+                            Log.i(TAG, "Will use QEMU for " + abi + " libraries");
+                            return;
+                        }
+                    }
+                }
+            }
 
+            // Fallback to armeabi for compatibility
             findAndCopyNativeLib(zipfile, "armeabi", nativeLibDir);
         } finally {
             Log.d(TAG, "Done! +" + (System.currentTimeMillis() - startTime) + "ms");
