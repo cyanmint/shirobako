@@ -75,11 +75,96 @@ if [ -n "$ARMHF_FILE" ] && [ -f "$ARMHF_FILE" ]; then
 fi
 
 ###############################
-# Skip Android runtime download
+# Download Android runtime from redroid
 ###############################
 
-echo "Skipping Android runtime download (not required for build)"
-echo "Note: Runtime libraries are optional. The build succeeds without them."
+echo "Downloading Android runtime from redroid container..."
+
+# Check if docker is available
+if ! command -v docker &> /dev/null; then
+    echo "Warning: Docker not found, skipping Android runtime download"
+    echo "QEMU binaries have been downloaded, but runtime libraries are missing"
+    cd "$OLDPWD"
+    rm -rf "$TEMP_DIR"
+    exit 0
+fi
+
+# Pull redroid container
+echo "Pulling redroid container (this may take a while)..."
+if docker pull docker.io/redroid/redroid:16.0.0-latest; then
+    echo "  ✓ Successfully pulled redroid container"
+else
+    echo "Warning: Failed to pull redroid container, skipping runtime download"
+    cd "$OLDPWD"
+    rm -rf "$TEMP_DIR"
+    exit 0
+fi
+
+# Create temporary container
+CONTAINER_ID=$(docker create docker.io/redroid/redroid:16.0.0-latest)
+echo "Created temporary container: $CONTAINER_ID"
+
+# Export container filesystem to access actual files (not symlinks)
+echo "Extracting runtime files from container..."
+EXPORT_TAR="$TEMP_DIR/redroid_export.tar"
+docker export "$CONTAINER_ID" > "$EXPORT_TAR" 2>/dev/null
+
+# Extract arm64 runtime from bootstrap directory
+echo "Extracting arm64 runtime..."
+if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/bin/bootstrap/linker64 2>/dev/null; then
+    cp "$TEMP_DIR/system/bin/bootstrap/linker64" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a/" && echo "  ✓ Copied linker64"
+else
+    echo "  ✗ linker64 not found in bootstrap"
+fi
+
+if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/lib64/bootstrap/libc.so 2>/dev/null; then
+    cp "$TEMP_DIR/system/lib64/bootstrap/libc.so" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a/" && echo "  ✓ Copied libc.so"
+else
+    echo "  ✗ libc.so not found in bootstrap"
+fi
+
+if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/lib64/bootstrap/libm.so 2>/dev/null; then
+    cp "$TEMP_DIR/system/lib64/bootstrap/libm.so" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a/" && echo "  ✓ Copied libm.so"
+else
+    echo "  ✗ libm.so not found in bootstrap"
+fi
+
+if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/lib64/bootstrap/libdl.so 2>/dev/null; then
+    cp "$TEMP_DIR/system/lib64/bootstrap/libdl.so" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a/" && echo "  ✓ Copied libdl.so"
+else
+    echo "  ✗ libdl.so not found in bootstrap"
+fi
+
+# Extract arm32 runtime from bootstrap directory
+echo "Extracting arm32 runtime..."
+if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/bin/bootstrap/linker 2>/dev/null; then
+    cp "$TEMP_DIR/system/bin/bootstrap/linker" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a/" && echo "  ✓ Copied linker"
+else
+    echo "  ✗ linker not found in bootstrap"
+fi
+
+if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/lib/bootstrap/libc.so 2>/dev/null; then
+    cp "$TEMP_DIR/system/lib/bootstrap/libc.so" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a/" && echo "  ✓ Copied libc.so"
+else
+    echo "  ✗ libc.so not found in bootstrap"
+fi
+
+if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/lib/bootstrap/libm.so 2>/dev/null; then
+    cp "$TEMP_DIR/system/lib/bootstrap/libm.so" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a/" && echo "  ✓ Copied libm.so"
+else
+    echo "  ✗ libm.so not found in bootstrap"
+fi
+
+if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/lib/bootstrap/libdl.so 2>/dev/null; then
+    cp "$TEMP_DIR/system/lib/bootstrap/libdl.so" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a/" && echo "  ✓ Copied libdl.so"
+else
+    echo "  ✗ libdl.so not found in bootstrap"
+fi
+
+# Clean up export tarball and container
+rm -f "$EXPORT_TAR"
+docker rm "$CONTAINER_ID" >/dev/null
+echo "Cleaned up temporary container"
 
 # Return to original directory
 cd "$OLDPWD"
@@ -88,10 +173,15 @@ rm -rf "$TEMP_DIR"
 echo ""
 echo "Asset download complete!"
 echo "QEMU binaries downloaded to: $ASSETS_DIR/qemu/"
+echo "Runtime libraries downloaded to: $ASSETS_DIR/runtime/"
 
 # List what was downloaded
 echo ""
 echo "Downloaded QEMU binaries:"
 find "$ASSETS_DIR/qemu" -type f -name "qemu-*" -exec ls -lh {} \; || echo "No QEMU binaries found"
+
+echo ""
+echo "Downloaded runtime libraries:"
+find "$ASSETS_DIR/runtime" -type f ! -name ".gitkeep" -exec ls -lh {} \; || echo "No runtime libraries found"
 
 exit 0

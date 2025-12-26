@@ -35,10 +35,12 @@ jobs:
         
       - name: Verify Downloaded Assets
         run: |
-          echo "Checking downloaded QEMU binaries..."
+          echo "Checking downloaded assets..."
+          echo "QEMU binaries:"
           find Bcore/src/main/assets/qemu -type f -name "qemu-*" || echo "Warning: No QEMU binaries found"
           echo ""
-          echo "Note: Runtime libraries are optional and not downloaded during CI"
+          echo "Runtime libraries:"
+          find Bcore/src/main/assets/runtime -type f ! -name ".gitkeep" || echo "Warning: No runtime libraries found"
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
