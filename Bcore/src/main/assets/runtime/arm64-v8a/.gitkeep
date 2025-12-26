@@ -1,6 +1,0 @@
-# Place Android arm64 runtime libraries here:
-# - linker64
-# - libc.so
-# - libm.so
-# - libdl.so
-# See ../README.md for instructions

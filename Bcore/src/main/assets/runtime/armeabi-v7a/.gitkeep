@@ -1,6 +1,0 @@
-# Place Android arm32 runtime libraries here:
-# - linker
-# - libc.so
-# - libm.so
-# - libdl.so
-# See ../README.md for instructions

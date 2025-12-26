@@ -1,4 +1,0 @@
-# Place QEMU static binaries here:
-# - qemu-aarch64-static (for running arm64 apps on x86_64 host)
-# - qemu-arm-static (for running arm32 apps on x86_64 host)
-# See ../README.md for instructions
