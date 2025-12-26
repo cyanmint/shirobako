@@ -4,14 +4,12 @@
 
 echo "Downloading QEMU user-mode static binaries and Android runtime libraries..."
 
-# Create directories
+# Create directories (only ARM architectures)
 ASSETS_DIR="Bcore/src/main/assets"
 mkdir -p "$ASSETS_DIR/qemu/arm64-v8a"
 mkdir -p "$ASSETS_DIR/qemu/armeabi-v7a"
-mkdir -p "$ASSETS_DIR/qemu/x86_64"
 mkdir -p "$ASSETS_DIR/runtime/arm64-v8a"
 mkdir -p "$ASSETS_DIR/runtime/armeabi-v7a"
-mkdir -p "$ASSETS_DIR/runtime/x86_64"
 
 # Create temporary directory
 TEMP_DIR=$(mktemp -d)
@@ -46,38 +44,10 @@ if [ -f "qemu-user-static_${QEMU_VERSION}_arm64.deb" ]; then
         cp usr/bin/qemu-arm-static "$OLDPWD/$ASSETS_DIR/qemu/arm64-v8a/"
         echo "  ✓ Copied qemu-arm-static for arm64 host"
     fi
-    if [ -f "usr/bin/qemu-x86_64-static" ]; then
-        cp usr/bin/qemu-x86_64-static "$OLDPWD/$ASSETS_DIR/qemu/arm64-v8a/"
-        echo "  ✓ Copied qemu-x86_64-static for arm64 host"
-    fi
     rm -rf usr data.tar.xz control.tar.xz debian-binary "qemu-user-static_${QEMU_VERSION}_arm64.deb"
 fi
 
-# For x86_64 host
-echo "Downloading QEMU for x86_64 host..."
-if wget -q "http://ftp.debian.org/debian/pool/main/q/qemu/qemu-user-static_${QEMU_VERSION}_amd64.deb"; then
-    echo "  Downloaded from ftp.debian.org"
-elif wget -q "http://deb.debian.org/debian/pool/main/q/qemu/qemu-user-static_${QEMU_VERSION}_amd64.deb"; then
-    echo "  Downloaded from deb.debian.org"
-else
-    echo "  Warning: Could not download QEMU for x86_64"
-fi
-
-if [ -f "qemu-user-static_${QEMU_VERSION}_amd64.deb" ]; then
-    ar x "qemu-user-static_${QEMU_VERSION}_amd64.deb"
-    tar xf data.tar.xz
-    if [ -f "usr/bin/qemu-aarch64-static" ]; then
-        cp usr/bin/qemu-aarch64-static "$OLDPWD/$ASSETS_DIR/qemu/x86_64/"
-        echo "  ✓ Copied qemu-aarch64-static for x86_64 host"
-    fi
-    if [ -f "usr/bin/qemu-arm-static" ]; then
-        cp usr/bin/qemu-arm-static "$OLDPWD/$ASSETS_DIR/qemu/x86_64/"
-        echo "  ✓ Copied qemu-arm-static for x86_64 host"
-    fi
-    rm -rf usr data.tar.xz control.tar.xz debian-binary "qemu-user-static_${QEMU_VERSION}_amd64.deb"
-fi
-
-# For armeabi-v7a host
+# For armeabi-v7a host  
 echo "Downloading QEMU for armeabi-v7a host..."
 # Try with +b2 suffix first (armhf specific), then without
 if wget -q "http://ftp.debian.org/debian/pool/main/q/qemu/qemu-user-static_${QEMU_VERSION_ARMHF}+b2_armhf.deb"; then
@@ -101,65 +71,15 @@ if [ -n "$ARMHF_FILE" ] && [ -f "$ARMHF_FILE" ]; then
         cp usr/bin/qemu-aarch64-static "$OLDPWD/$ASSETS_DIR/qemu/armeabi-v7a/"
         echo "  ✓ Copied qemu-aarch64-static for armeabi-v7a host"
     fi
-    if [ -f "usr/bin/qemu-x86_64-static" ]; then
-        cp usr/bin/qemu-x86_64-static "$OLDPWD/$ASSETS_DIR/qemu/armeabi-v7a/"
-        echo "  ✓ Copied qemu-x86_64-static for armeabi-v7a host"
-    fi
     rm -rf usr data.tar.xz control.tar.xz debian-binary "$ARMHF_FILE"
 fi
 
 ###############################
-# Download Android runtime from redroid
+# Skip Android runtime download
 ###############################
 
-echo "Downloading Android runtime from redroid container..."
-
-# Check if docker is available
-if ! command -v docker &> /dev/null; then
-    echo "Warning: Docker not found, skipping Android runtime download"
-    echo "QEMU binaries have been downloaded, but runtime libraries are missing"
-    cd "$OLDPWD"
-    rm -rf "$TEMP_DIR"
-    exit 0
-fi
-
-# Pull redroid container
-echo "Pulling redroid container (this may take a while)..."
-if docker pull docker.io/redroid/redroid:16.0.0-latest; then
-    echo "  ✓ Successfully pulled redroid container"
-else
-    echo "Warning: Failed to pull redroid container, skipping runtime download"
-    cd "$OLDPWD"
-    rm -rf "$TEMP_DIR"
-    exit 0
-fi
-
-# Create temporary container
-CONTAINER_ID=$(docker create docker.io/redroid/redroid:16.0.0-latest)
-echo "Created temporary container: $CONTAINER_ID"
-
-# Extract arm64 runtime
-echo "Extracting arm64 runtime..."
-docker cp "$CONTAINER_ID:/system/bin/linker64" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a/" 2>/dev/null && echo "  ✓ Copied linker64" || echo "  ✗ linker64 not found"
-docker cp "$CONTAINER_ID:/system/lib64/libc.so" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a/" 2>/dev/null && echo "  ✓ Copied libc.so" || echo "  ✗ libc.so not found"
-docker cp "$CONTAINER_ID:/system/lib64/libm.so" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a/" 2>/dev/null && echo "  ✓ Copied libm.so" || echo "  ✗ libm.so not found"
-docker cp "$CONTAINER_ID:/system/lib64/libdl.so" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a/" 2>/dev/null && echo "  ✓ Copied libdl.so" || echo "  ✗ libdl.so not found"
-
-# Extract arm32 runtime
-echo "Extracting arm32 runtime..."
-docker cp "$CONTAINER_ID:/system/bin/linker" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a/" 2>/dev/null && echo "  ✓ Copied linker" || echo "  ✗ linker not found"
-docker cp "$CONTAINER_ID:/system/lib/libc.so" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a/" 2>/dev/null && echo "  ✓ Copied libc.so" || echo "  ✗ libc.so not found"
-docker cp "$CONTAINER_ID:/system/lib/libm.so" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a/" 2>/dev/null && echo "  ✓ Copied libm.so" || echo "  ✗ libm.so not found"
-docker cp "$CONTAINER_ID:/system/lib/libdl.so" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a/" 2>/dev/null && echo "  ✓ Copied libdl.so" || echo "  ✗ libdl.so not found"
-
-# Try to extract x86_64 runtime (may not be available)
-echo "Attempting to extract x86_64 runtime..."
-docker cp "$CONTAINER_ID:/system/bin/linker64" "$OLDPWD/$ASSETS_DIR/runtime/x86_64/" 2>/dev/null && echo "  ✓ Copied linker64" || echo "  ℹ x86_64 linker64 not available in container"
-docker cp "$CONTAINER_ID:/system/lib64/libc.so" "$OLDPWD/$ASSETS_DIR/runtime/x86_64/" 2>/dev/null || echo "  ℹ x86_64 runtime not available, will use arm64 runtime with QEMU"
-
-# Clean up container
-docker rm "$CONTAINER_ID" >/dev/null
-echo "Cleaned up temporary container"
+echo "Skipping Android runtime download (not required for build)"
+echo "Note: Runtime libraries are optional. The build succeeds without them."
 
 # Return to original directory
 cd "$OLDPWD"
@@ -168,15 +88,10 @@ rm -rf "$TEMP_DIR"
 echo ""
 echo "Asset download complete!"
 echo "QEMU binaries downloaded to: $ASSETS_DIR/qemu/"
-echo "Runtime libraries downloaded to: $ASSETS_DIR/runtime/"
 
 # List what was downloaded
 echo ""
 echo "Downloaded QEMU binaries:"
 find "$ASSETS_DIR/qemu" -type f -name "qemu-*" -exec ls -lh {} \; || echo "No QEMU binaries found"
-
-echo ""
-echo "Downloaded runtime libraries:"
-find "$ASSETS_DIR/runtime" -type f ! -name ".gitkeep" -exec ls -lh {} \; || echo "No runtime libraries found"
 
 exit 0
