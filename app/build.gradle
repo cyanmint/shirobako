@@ -27,6 +27,21 @@ android {
             }
         }
     }
+    
+    // Handle large QEMU assets properly
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+        // Don't compress QEMU binaries and runtime libraries
+        resources {
+            excludes += ['META-INF/*.kotlin_module']
+        }
+    }
+    aaptOptions {
+        noCompress 'qemu-arm-static', 'qemu-aarch64-static', 'qemu-x86_64-static'
+        noCompress 'linker', 'linker64', 'libc.so', 'libm.so', 'libdl.so'
+    }
 
     buildTypes {
         release {
