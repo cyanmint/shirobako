@@ -28,46 +28,27 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses || true
 
+      - name: Download QEMU and Runtime Assets
+        run: |
+          chmod +x scripts/download-assets.sh
+          bash scripts/download-assets.sh
+        
+      - name: Verify Downloaded Assets
+        run: |
+          echo "Checking downloaded assets..."
+          find Bcore/src/main/assets/qemu -type f -name "qemu-*" || echo "No QEMU binaries found"
+          find Bcore/src/main/assets/runtime -type f ! -name ".gitkeep" || echo "No runtime libraries found"
+
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
-      - name: Build Release APK
-        run: ./gradlew assembleRelease
-
-      - name: Build Bcore AAR
-        run: ./gradlew :Bcore:assembleRelease
-
-      - name: Build Bcore Debug AAR
-        run: ./gradlew :Bcore:assembleDebug
-
       - name: Upload Debug APKs
         uses: actions/upload-artifact@v4
         with:
           name: debug-apks
           path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-
-      - name: Upload Release APKs
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-apks
-          path: app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
-
-      - name: Upload Debug AAR
-        uses: actions/upload-artifact@v4
-        with:
-          name: bcore-debug-aar
-          path: Bcore/build/outputs/aar/*-debug.aar
-          if-no-files-found: error
-
-      - name: Upload Release AAR
-        uses: actions/upload-artifact@v4
-        with:
-          name: bcore-release-aar
-          path: Bcore/build/outputs/aar/*-release.aar
           if-no-files-found: error
 

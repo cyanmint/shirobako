@@ -18,3 +18,8 @@
 .cxx
 local.properties
 /app/release/
+
+# QEMU and runtime assets (downloaded by CI, large binaries)
+Bcore/src/main/assets/qemu/*/qemu-*-static
+Bcore/src/main/assets/runtime/*/linker*
+Bcore/src/main/assets/runtime/*/lib*.so
