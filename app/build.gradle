@@ -36,11 +36,15 @@ android {
         // Don't compress QEMU binaries and runtime libraries
         resources {
             excludes += ['META-INF/*.kotlin_module']
+            // Prevent compression of QEMU executables
+            pickFirsts += ['**/qemu-*-static']
         }
     }
-    aaptOptions {
-        noCompress 'qemu-arm-static', 'qemu-aarch64-static', 'qemu-x86_64-static'
-        noCompress 'linker', 'linker64', 'libc.so', 'libm.so', 'libdl.so'
+    
+    // Prevent compression of QEMU assets
+    androidResources {
+        noCompress 'qemu-arm-static', 'qemu-aarch64-static', 'qemu-x86_64-static', 'linker', 'linker64'
+        noCompress += ['libc.so', 'libm.so', 'libdl.so']
     }
 
     buildTypes {
