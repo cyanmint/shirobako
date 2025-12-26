@@ -3,12 +3,21 @@
 # AI-generated contents are not applicable for copyright nor warranty.
 
 echo "Downloading QEMU user-mode static binaries and Android runtime libraries..."
+echo "Shirobako - Fork of BlackBox"
+echo ""
 
-# Create directories for both ARM architectures
+# Create directories for all architectures
 ASSETS_DIR="Bcore/src/main/assets"
-mkdir -p "$ASSETS_DIR/qemu/arm64-v8a"
+
+# QEMU directories for different host architectures
+mkdir -p "$ASSETS_DIR/qemu/arm64-v8a"      # arm64 host
+mkdir -p "$ASSETS_DIR/qemu/armeabi-v7a"    # arm32 host (no QEMU needed - native only)
+mkdir -p "$ASSETS_DIR/qemu/x86_64"         # amd64 host
+
+# Runtime directories for different guest architectures  
 mkdir -p "$ASSETS_DIR/runtime/arm64-v8a"
 mkdir -p "$ASSETS_DIR/runtime/armeabi-v7a"
+mkdir -p "$ASSETS_DIR/runtime/x86_64"
 
 # Create temporary directory
 TEMP_DIR=$(mktemp -d)
@@ -20,37 +29,70 @@ echo "Working in temporary directory: $TEMP_DIR"
 RELEASE_URL="https://github.com/cyanmint/shirobako/releases/download/main"
 
 ###############################
-# Download vendored QEMU binaries (only for arm64)
+# Download vendored QEMU binaries
 ###############################
 
+echo ""
 echo "Downloading vendored QEMU binaries from GitHub release..."
-echo "Note: QEMU support only for arm64-v8a (arm32 lacks prebuilt QEMU)"
+echo "Architecture support matrix:"
+echo "  - arm32 host: only arm32 guest natively (no QEMU)"
+echo "  - arm64+arm32 host: arm32/arm64 natively, x86_64 via QEMU"
+echo "  - arm64 only host: arm64 natively, arm32/x86_64 via QEMU"
+echo "  - amd64 host: arm64/arm32 via QEMU, x86_64 natively"
+echo ""
 
-# For arm64 host - download both qemu-arm and qemu-x86_64
+# For arm64-v8a host
 echo "Downloading QEMU binaries for arm64-v8a host..."
 
-# Download arm64-qemu-arm (for running arm32 apps on arm64 devices)
+# arm64-qemu-arm (for running arm32 apps on arm64-only devices)
 if wget -q "${RELEASE_URL}/arm64-qemu-arm" -O arm64-qemu-arm; then
     chmod +x arm64-qemu-arm
     cp arm64-qemu-arm "$OLDPWD/$ASSETS_DIR/qemu/arm64-v8a/qemu-arm-static"
-    echo "  ✓ Downloaded and copied arm64-qemu-arm"
+    echo "  ✓ Downloaded arm64-qemu-arm (arm32 guest on arm64 host)"
 else
     echo "  ✗ Failed to download arm64-qemu-arm"
 fi
 
-# Download arm64-qemu-x86_64 (for running x86_64 apps on arm64 devices)
+# arm64-qemu-x86_64 (for running x86_64 apps on arm64 devices)
 if wget -q "${RELEASE_URL}/arm64-qemu-x86_64" -O arm64-qemu-x86_64; then
     chmod +x arm64-qemu-x86_64
     cp arm64-qemu-x86_64 "$OLDPWD/$ASSETS_DIR/qemu/arm64-v8a/qemu-x86_64-static"
-    echo "  ✓ Downloaded and copied arm64-qemu-x86_64"
+    echo "  ✓ Downloaded arm64-qemu-x86_64 (x86_64 guest on arm64 host)"
 else
     echo "  ✗ Failed to download arm64-qemu-x86_64"
 fi
+
+# For x86_64 (amd64) host
+echo ""
+echo "Downloading QEMU binaries for x86_64 host..."
+
+# amd64-qemu-aarch64 (for running arm64 apps on x86_64 devices)
+if wget -q "${RELEASE_URL}/amd64-qemu-aarch64" -O amd64-qemu-aarch64; then
+    chmod +x amd64-qemu-aarch64
+    cp amd64-qemu-aarch64 "$OLDPWD/$ASSETS_DIR/qemu/x86_64/qemu-aarch64-static"
+    echo "  ✓ Downloaded amd64-qemu-aarch64 (arm64 guest on amd64 host)"
+else
+    echo "  ✗ Failed to download amd64-qemu-aarch64"
+fi
+
+# amd64-qemu-arm (for running arm32 apps on x86_64 devices)
+if wget -q "${RELEASE_URL}/amd64-qemu-arm" -O amd64-qemu-arm; then
+    chmod +x amd64-qemu-arm
+    cp amd64-qemu-arm "$OLDPWD/$ASSETS_DIR/qemu/x86_64/qemu-arm-static"
+    echo "  ✓ Downloaded amd64-qemu-arm (arm32 guest on amd64 host)"
+else
+    echo "  ✗ Failed to download amd64-qemu-arm"
+fi
+
+# Note: armeabi-v7a host doesn't need QEMU (runs arm32 natively only)
+echo ""
+echo "Note: armeabi-v7a host runs arm32 guests natively only (no QEMU support)"
 
 ###############################
 # Download vendored Android runtime
 ###############################
 
+echo ""
 echo "Downloading vendored Android runtime from GitHub release..."
 
 # Function to extract files from APEX
@@ -108,24 +150,32 @@ extract_from_apex() {
     fi
 }
 
-# Download arm64 runtime APEX
+# Download arm64 runtime APEX (contains both 64-bit and 32-bit ARM libraries)
+echo ""
 echo "Downloading arm64 Android runtime..."
 if wget -q "${RELEASE_URL}/arm64-com.android.runtime.apex" -O arm64-runtime.apex; then
     echo "  ✓ Downloaded arm64-com.android.runtime.apex"
+    
+    # Extract 64-bit ARM runtime
     extract_from_apex "arm64-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a" "true"
+    
+    # Extract 32-bit ARM runtime (from /lib directory)
+    extract_from_apex "arm64-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a" "false"
+    
     rm -f arm64-runtime.apex
 else
     echo "  ✗ Failed to download arm64-com.android.runtime.apex"
 fi
 
-# Download amd64 runtime APEX for arm32
-echo "Downloading amd64 Android runtime for armeabi-v7a..."
+# Download x86_64 runtime (from amd64 APEX)
+echo ""
+echo "Downloading x86_64 Android runtime..."
 if wget -q "${RELEASE_URL}/amd64-com.android.runtime.apex" -O amd64-runtime.apex; then
-    echo "  ✓ Downloaded amd64-com.android.runtime.apex"
-    extract_from_apex "amd64-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a" "false"
+    echo "  ✓ Downloaded amd64-com.android.runtime.apex for x86_64"
+    extract_from_apex "amd64-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/x86_64" "true"
     rm -f amd64-runtime.apex
 else
-    echo "  ✗ Failed to download amd64-com.android.runtime.apex"
+    echo "  ✗ Failed to download amd64-com.android.runtime.apex for x86_64"
 fi
 
 # Return to original directory
@@ -133,17 +183,25 @@ cd "$OLDPWD"
 rm -rf "$TEMP_DIR"
 
 echo ""
+echo "========================================="
 echo "Asset download complete!"
+echo "========================================="
 echo "QEMU binaries downloaded to: $ASSETS_DIR/qemu/"
 echo "Runtime libraries downloaded to: $ASSETS_DIR/runtime/"
+echo ""
 
 # List what was downloaded
-echo ""
 echo "Downloaded QEMU binaries:"
-find "$ASSETS_DIR/qemu" -type f -name "qemu-*" -exec ls -lh {} \; || echo "No QEMU binaries found"
+find "$ASSETS_DIR/qemu" -type f -name "qemu-*" -exec ls -lh {} \; 2>/dev/null || echo "  (none found)"
 
 echo ""
 echo "Downloaded runtime libraries:"
-find "$ASSETS_DIR/runtime" -type f ! -name ".gitkeep" -exec ls -lh {} \; || echo "No runtime libraries found"
+find "$ASSETS_DIR/runtime" -type f ! -name ".gitkeep" -exec ls -lh {} \; 2>/dev/null || echo "  (none found)"
+
+echo ""
+echo "Architecture support:"
+echo "  ✓ arm64-v8a host: native arm64, QEMU for arm32 & x86_64"
+echo "  ✓ armeabi-v7a host: native arm32 only"
+echo "  ✓ x86_64 host: native x86_64, QEMU for arm64 & arm32"
 
 exit 0
