@@ -4,10 +4,9 @@
 
 echo "Downloading QEMU user-mode static binaries and Android runtime libraries..."
 
-# Create directories (only ARM architectures)
+# Create directories for both ARM architectures
 ASSETS_DIR="Bcore/src/main/assets"
 mkdir -p "$ASSETS_DIR/qemu/arm64-v8a"
-mkdir -p "$ASSETS_DIR/qemu/armeabi-v7a"
 mkdir -p "$ASSETS_DIR/runtime/arm64-v8a"
 mkdir -p "$ASSETS_DIR/runtime/armeabi-v7a"
 
@@ -17,154 +16,117 @@ cd "$TEMP_DIR"
 
 echo "Working in temporary directory: $TEMP_DIR"
 
-# QEMU version to download (use Debian 12 version with actual static binaries)
-QEMU_VERSION="7.2+dfsg-7+deb12u17"
-QEMU_VERSION_ARMHF="7.2+dfsg-7+deb12u16"  # armhf uses slightly older version
+# GitHub release URL for vendored assets
+RELEASE_URL="https://github.com/cyanmint/shirobako/releases/download/main"
 
 ###############################
-# Download QEMU static binaries
+# Download vendored QEMU binaries (only for arm64)
 ###############################
 
-echo "Downloading QEMU static binaries..."
+echo "Downloading vendored QEMU binaries from GitHub release..."
+echo "Note: QEMU support only for arm64-v8a (arm32 lacks prebuilt QEMU)"
 
-# For arm64 host
-echo "Downloading QEMU for arm64 host..."
-if wget -q "http://ftp.debian.org/debian/pool/main/q/qemu/qemu-user-static_${QEMU_VERSION}_arm64.deb"; then
-    echo "  Downloaded from ftp.debian.org"
-elif wget -q "http://deb.debian.org/debian/pool/main/q/qemu/qemu-user-static_${QEMU_VERSION}_arm64.deb"; then
-    echo "  Downloaded from deb.debian.org"
+# For arm64 host - download both qemu-arm and qemu-x86_64
+echo "Downloading QEMU binaries for arm64-v8a host..."
+
+# Download arm64-qemu-arm (for running arm32 apps on arm64 devices)
+if wget -q "${RELEASE_URL}/arm64-qemu-arm" -O arm64-qemu-arm; then
+    chmod +x arm64-qemu-arm
+    cp arm64-qemu-arm "$OLDPWD/$ASSETS_DIR/qemu/arm64-v8a/qemu-arm-static"
+    echo "  ✓ Downloaded and copied arm64-qemu-arm"
 else
-    echo "  Warning: Could not download QEMU for arm64"
+    echo "  ✗ Failed to download arm64-qemu-arm"
 fi
 
-if [ -f "qemu-user-static_${QEMU_VERSION}_arm64.deb" ]; then
-    ar x "qemu-user-static_${QEMU_VERSION}_arm64.deb"
-    tar xf data.tar.xz
-    if [ -f "usr/bin/qemu-arm-static" ]; then
-        cp usr/bin/qemu-arm-static "$OLDPWD/$ASSETS_DIR/qemu/arm64-v8a/"
-        echo "  ✓ Copied qemu-arm-static for arm64 host"
+# Download arm64-qemu-x86_64 (for running x86_64 apps on arm64 devices)
+if wget -q "${RELEASE_URL}/arm64-qemu-x86_64" -O arm64-qemu-x86_64; then
+    chmod +x arm64-qemu-x86_64
+    cp arm64-qemu-x86_64 "$OLDPWD/$ASSETS_DIR/qemu/arm64-v8a/qemu-x86_64-static"
+    echo "  ✓ Downloaded and copied arm64-qemu-x86_64"
+else
+    echo "  ✗ Failed to download arm64-qemu-x86_64"
+fi
+
+###############################
+# Download vendored Android runtime
+###############################
+
+echo "Downloading vendored Android runtime from GitHub release..."
+
+# Function to extract files from APEX
+extract_from_apex() {
+    local apex_file=$1
+    local output_dir=$2
+    local is_64bit=$3
+    
+    echo "  Extracting runtime files from APEX: $apex_file"
+    
+    # Unzip the APEX file to get apex_payload.img
+    if unzip -q "$apex_file" apex_payload.img -d apex_work; then
+        # Use debugfs to extract files from the ext2/4 image
+        local payload="apex_work/apex_payload.img"
+        
+        if [ "$is_64bit" = "true" ]; then
+            # Extract 64-bit files
+            debugfs -R "dump /bin/linker64 linker64" "$payload" 2>/dev/null && \
+                cp linker64 "$output_dir/" && echo "    ✓ Extracted linker64"
+            
+            # Try different paths for libraries
+            debugfs -R "dump /lib64/bionic/libc.so libc.so" "$payload" 2>/dev/null || \
+            debugfs -R "dump /lib64/bootstrap/libc.so libc.so" "$payload" 2>/dev/null
+            [ -f "libc.so" ] && cp libc.so "$output_dir/" && echo "    ✓ Extracted libc.so"
+            
+            debugfs -R "dump /lib64/bionic/libm.so libm.so" "$payload" 2>/dev/null || \
+            debugfs -R "dump /lib64/bootstrap/libm.so libm.so" "$payload" 2>/dev/null
+            [ -f "libm.so" ] && cp libm.so "$output_dir/" && echo "    ✓ Extracted libm.so"
+            
+            debugfs -R "dump /lib64/bionic/libdl.so libdl.so" "$payload" 2>/dev/null || \
+            debugfs -R "dump /lib64/bootstrap/libdl.so libdl.so" "$payload" 2>/dev/null
+            [ -f "libdl.so" ] && cp libdl.so "$output_dir/" && echo "    ✓ Extracted libdl.so"
+        else
+            # Extract 32-bit files
+            debugfs -R "dump /bin/linker linker" "$payload" 2>/dev/null && \
+                cp linker "$output_dir/" && echo "    ✓ Extracted linker"
+            
+            # Try different paths for libraries
+            debugfs -R "dump /lib/bionic/libc.so libc.so" "$payload" 2>/dev/null || \
+            debugfs -R "dump /lib/bootstrap/libc.so libc.so" "$payload" 2>/dev/null
+            [ -f "libc.so" ] && cp libc.so "$output_dir/" && echo "    ✓ Extracted libc.so"
+            
+            debugfs -R "dump /lib/bionic/libm.so libm.so" "$payload" 2>/dev/null || \
+            debugfs -R "dump /lib/bootstrap/libm.so libm.so" "$payload" 2>/dev/null
+            [ -f "libm.so" ] && cp libm.so "$output_dir/" && echo "    ✓ Extracted libm.so"
+            
+            debugfs -R "dump /lib/bionic/libdl.so libdl.so" "$payload" 2>/dev/null || \
+            debugfs -R "dump /lib/bootstrap/libdl.so libdl.so" "$payload" 2>/dev/null
+            [ -f "libdl.so" ] && cp libdl.so "$output_dir/" && echo "    ✓ Extracted libdl.so"
+        fi
+        
+        rm -rf apex_work linker* libc.so libm.so libdl.so
+    else
+        echo "  ✗ Failed to extract APEX file"
     fi
-    rm -rf usr data.tar.xz control.tar.xz debian-binary "qemu-user-static_${QEMU_VERSION}_arm64.deb"
-fi
+}
 
-# For armeabi-v7a host  
-echo "Downloading QEMU for armeabi-v7a host..."
-# Try with +b2 suffix first (armhf specific), then without
-if wget -q "http://ftp.debian.org/debian/pool/main/q/qemu/qemu-user-static_${QEMU_VERSION_ARMHF}+b2_armhf.deb"; then
-    echo "  Downloaded from ftp.debian.org (with +b2)"
-    ARMHF_FILE="qemu-user-static_${QEMU_VERSION_ARMHF}+b2_armhf.deb"
-elif wget -q "http://ftp.debian.org/debian/pool/main/q/qemu/qemu-user-static_${QEMU_VERSION_ARMHF}_armhf.deb"; then
-    echo "  Downloaded from ftp.debian.org"
-    ARMHF_FILE="qemu-user-static_${QEMU_VERSION_ARMHF}_armhf.deb"
-elif wget -q "http://deb.debian.org/debian/pool/main/q/qemu/qemu-user-static_${QEMU_VERSION_ARMHF}_armhf.deb"; then
-    echo "  Downloaded from deb.debian.org"
-    ARMHF_FILE="qemu-user-static_${QEMU_VERSION_ARMHF}_armhf.deb"
+# Download arm64 runtime APEX
+echo "Downloading arm64 Android runtime..."
+if wget -q "${RELEASE_URL}/arm64-com.android.runtime.apex" -O arm64-runtime.apex; then
+    echo "  ✓ Downloaded arm64-com.android.runtime.apex"
+    extract_from_apex "arm64-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a" "true"
+    rm -f arm64-runtime.apex
 else
-    echo "  Warning: Could not download QEMU for armeabi-v7a"
-    ARMHF_FILE=""
+    echo "  ✗ Failed to download arm64-com.android.runtime.apex"
 fi
 
-if [ -n "$ARMHF_FILE" ] && [ -f "$ARMHF_FILE" ]; then
-    ar x "$ARMHF_FILE"
-    tar xf data.tar.xz
-    if [ -f "usr/bin/qemu-aarch64-static" ]; then
-        cp usr/bin/qemu-aarch64-static "$OLDPWD/$ASSETS_DIR/qemu/armeabi-v7a/"
-        echo "  ✓ Copied qemu-aarch64-static for armeabi-v7a host"
-    fi
-    rm -rf usr data.tar.xz control.tar.xz debian-binary "$ARMHF_FILE"
-fi
-
-###############################
-# Download Android runtime from redroid
-###############################
-
-echo "Downloading Android runtime from redroid container..."
-
-# Check if docker is available
-if ! command -v docker &> /dev/null; then
-    echo "Warning: Docker not found, skipping Android runtime download"
-    echo "QEMU binaries have been downloaded, but runtime libraries are missing"
-    cd "$OLDPWD"
-    rm -rf "$TEMP_DIR"
-    exit 0
-fi
-
-# Pull redroid container
-echo "Pulling redroid container (this may take a while)..."
-if docker pull docker.io/redroid/redroid:16.0.0-latest; then
-    echo "  ✓ Successfully pulled redroid container"
+# Download amd64 runtime APEX for arm32
+echo "Downloading amd64 Android runtime for armeabi-v7a..."
+if wget -q "${RELEASE_URL}/amd64-com.android.runtime.apex" -O amd64-runtime.apex; then
+    echo "  ✓ Downloaded amd64-com.android.runtime.apex"
+    extract_from_apex "amd64-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a" "false"
+    rm -f amd64-runtime.apex
 else
-    echo "Warning: Failed to pull redroid container, skipping runtime download"
-    cd "$OLDPWD"
-    rm -rf "$TEMP_DIR"
-    exit 0
+    echo "  ✗ Failed to download amd64-com.android.runtime.apex"
 fi
-
-# Create temporary container
-CONTAINER_ID=$(docker create docker.io/redroid/redroid:16.0.0-latest)
-echo "Created temporary container: $CONTAINER_ID"
-
-# Export container filesystem to access actual files (not symlinks)
-echo "Extracting runtime files from container..."
-EXPORT_TAR="$TEMP_DIR/redroid_export.tar"
-docker export "$CONTAINER_ID" > "$EXPORT_TAR" 2>/dev/null
-
-# Extract arm64 runtime from bootstrap directory
-echo "Extracting arm64 runtime..."
-if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/bin/bootstrap/linker64 2>/dev/null; then
-    cp "$TEMP_DIR/system/bin/bootstrap/linker64" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a/" && echo "  ✓ Copied linker64"
-else
-    echo "  ✗ linker64 not found in bootstrap"
-fi
-
-if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/lib64/bootstrap/libc.so 2>/dev/null; then
-    cp "$TEMP_DIR/system/lib64/bootstrap/libc.so" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a/" && echo "  ✓ Copied libc.so"
-else
-    echo "  ✗ libc.so not found in bootstrap"
-fi
-
-if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/lib64/bootstrap/libm.so 2>/dev/null; then
-    cp "$TEMP_DIR/system/lib64/bootstrap/libm.so" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a/" && echo "  ✓ Copied libm.so"
-else
-    echo "  ✗ libm.so not found in bootstrap"
-fi
-
-if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/lib64/bootstrap/libdl.so 2>/dev/null; then
-    cp "$TEMP_DIR/system/lib64/bootstrap/libdl.so" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a/" && echo "  ✓ Copied libdl.so"
-else
-    echo "  ✗ libdl.so not found in bootstrap"
-fi
-
-# Extract arm32 runtime from bootstrap directory
-echo "Extracting arm32 runtime..."
-if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/bin/bootstrap/linker 2>/dev/null; then
-    cp "$TEMP_DIR/system/bin/bootstrap/linker" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a/" && echo "  ✓ Copied linker"
-else
-    echo "  ✗ linker not found in bootstrap"
-fi
-
-if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/lib/bootstrap/libc.so 2>/dev/null; then
-    cp "$TEMP_DIR/system/lib/bootstrap/libc.so" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a/" && echo "  ✓ Copied libc.so"
-else
-    echo "  ✗ libc.so not found in bootstrap"
-fi
-
-if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/lib/bootstrap/libm.so 2>/dev/null; then
-    cp "$TEMP_DIR/system/lib/bootstrap/libm.so" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a/" && echo "  ✓ Copied libm.so"
-else
-    echo "  ✗ libm.so not found in bootstrap"
-fi
-
-if tar -xf "$EXPORT_TAR" -C "$TEMP_DIR" system/lib/bootstrap/libdl.so 2>/dev/null; then
-    cp "$TEMP_DIR/system/lib/bootstrap/libdl.so" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a/" && echo "  ✓ Copied libdl.so"
-else
-    echo "  ✗ libdl.so not found in bootstrap"
-fi
-
-# Clean up export tarball and container
-rm -f "$EXPORT_TAR"
-docker rm "$CONTAINER_ID" >/dev/null
-echo "Cleaned up temporary container"
 
 # Return to original directory
 cd "$OLDPWD"
