@@ -2,6 +2,7 @@
 #define CORE_ARCH_CPU_H
 
 #include <stdint.h>
+#include "core/arch/CpuRegister.h"
 
 // Stub header for compatibility with vendored Dobby
 // The original Cpu.h is not present in this version
