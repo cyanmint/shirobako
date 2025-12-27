@@ -148,3 +148,7 @@ struct CodeMemBuffer : MemBuffer {
   }
 #endif
 };
+
+// Compatibility alias for older Dobby code that uses CodeBuffer
+using CodeBuffer = CodeMemBuffer;
+

@@ -258,17 +258,44 @@ elseif (PROCESSOR.X86_64)
 endif ()
 ```
 
+### 14. CodeMemBuffer.h - CodeBuffer Compatibility Alias
+
+**File**: `Bcore/src/main/cpp/Dobby/source/MemoryAllocator/CodeMemBuffer.h`
+
+**Issue**: 32-bit architecture assemblers (ARM and x86) use the old `CodeBuffer` type name, but the vendored Dobby uses `CodeMemBuffer`.
+
+**Fix**: Added a type alias for backward compatibility.
+
+```cpp
+// At the end of CodeMemBuffer.h
+// Compatibility alias for older Dobby code that uses CodeBuffer
+using CodeBuffer = CodeMemBuffer;
+```
+
+**Note**: While this alias helps with type compatibility, the 32-bit assemblers have deeper API incompatibilities (different constructor signatures, missing/renamed methods, member variable vs. method access patterns) that would require extensive refactoring beyond simple patches. Therefore, 32-bit architectures (armeabi-v7a, x86) are not currently supported.
+
 ## Current Status
 
 ### Working
-- ✅ arm64-v8a architecture builds successfully
-- ✅ x86_64 architecture builds successfully  
+- ✅ **arm64-v8a** architecture builds successfully
+- ✅ **x86_64** architecture builds successfully  
 - ✅ All compilation and linking succeeds
 - ✅ APK generation works
 
-### Remaining Work
-- ⚠️ armeabi-v7a: Has `CodeBuffer` vs `CodeMemBuffer` API incompatibility issues
-- ⚠️ x86 (32-bit): Not yet tested/patched
+### Not Supported (Extensive Refactoring Required)
+- ❌ **armeabi-v7a** (32-bit ARM): Has extensive `CodeBuffer` vs `CodeMemBuffer` API incompatibilities in assembler-arm.h:
+  - Different constructor patterns (pointer-based vs reference-based)
+  - Missing methods (`SetRealizedAddress`, `withData`, etc.)
+  - Member variable access patterns (`buffer_`, `data_labels_`, `realized_addr_`, `ip_offset`) don't exist in new API
+  - Would require major refactoring of the ARM assembler implementation
+
+- ❌ **x86** (32-bit Intel): Similar API incompatibilities in assembler-ia32.h:
+  - Same constructor and method signature mismatches as ARM
+  - Missing `FixBindLabel` method in CodeMemBuffer
+  - Register access issues (`reg_code_` vs `code()` method)
+  - Would require major refactoring of the x86 assembler implementation
+
+**Recommendation**: Modern Android devices (API 21+) primarily use 64-bit architectures. The arm64-v8a and x86_64 support covers the vast majority of current devices.
 
 ## Build Configuration
 
@@ -276,7 +303,9 @@ Currently builds for arm64-v8a and x86_64 in `Bcore/build.gradle`:
 
 ```gradle
 ndk {
-    // Build for arm64-v8a and x86_64 - Dobby patched for NDK 26+ compatibility
+    // Build for 64-bit architectures - Dobby patched for NDK 26+ compatibility
+    // Note: 32-bit architectures (armeabi-v7a, x86) have extensive CodeBuffer API
+    // incompatibilities requiring major refactoring beyond simple patches
     abiFilters 'arm64-v8a', 'x86_64'
 }
 ```
