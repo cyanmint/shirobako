@@ -184,10 +184,13 @@ class Assembler : public AssemblerBase {
 private:
   ExecuteState execute_state_;
 
+protected:
+  CodeBuffer *buffer_; // Compatibility pointer for old ARM assembler code
+
 public:
   Assembler(void *address) : AssemblerBase(address) {
     execute_state_ = ARMExecuteState;
-    buffer_ = new CodeBuffer();
+    buffer_ = &code_buffer_; // Point to the inherited code_buffer_
   }
 
   // shared_ptr is better choice
@@ -340,7 +343,7 @@ public:
   }
 
   void RelocLabelFixup(stl::unordered_map<off_t, off_t> *relocated_offset_map) {
-    for (auto *data_label : data_labels_) {
+    for (auto *data_label : data_labels) {
       auto val = data_label->data<int32_t>();
       auto iter = relocated_offset_map->find(val);
       if (iter != relocated_offset_map->end()) {

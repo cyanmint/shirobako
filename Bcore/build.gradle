@@ -21,10 +21,8 @@ android {
 
         consumerProguardFiles "consumer-rules.pro"
         ndk {
-            // Build for 64-bit architectures - Dobby patched for NDK 26+ compatibility
-            // Note: 32-bit architectures (armeabi-v7a, x86) have extensive CodeBuffer API
-            // incompatibilities requiring major refactoring beyond simple patches
-            abiFilters 'arm64-v8a', 'x86_64'
+            // Build for ARM architectures - Dobby patched for NDK 26+ compatibility
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
         }
     }
     
