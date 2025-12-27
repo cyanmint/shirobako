@@ -10,14 +10,16 @@ echo ""
 ASSETS_DIR="Bcore/src/main/assets"
 
 # QEMU directories for different host architectures
-mkdir -p "$ASSETS_DIR/qemu/arm64-v8a"      # arm64 host
-mkdir -p "$ASSETS_DIR/qemu/armeabi-v7a"    # arm32 host (no QEMU needed - native only)
-mkdir -p "$ASSETS_DIR/qemu/x86_64"         # amd64 host
+mkdir -p "$ASSETS_DIR/qemu/arm64-v8a"      # aarch64 host
+mkdir -p "$ASSETS_DIR/qemu/armeabi-v7a"    # arm host
+mkdir -p "$ASSETS_DIR/qemu/x86_64"         # x86_64 host
+mkdir -p "$ASSETS_DIR/qemu/x86"            # i386 host
 
 # Runtime directories for different guest architectures  
-mkdir -p "$ASSETS_DIR/runtime/arm64-v8a"
-mkdir -p "$ASSETS_DIR/runtime/armeabi-v7a"
-mkdir -p "$ASSETS_DIR/runtime/x86_64"
+mkdir -p "$ASSETS_DIR/runtime/arm64-v8a"   # aarch64 guest
+mkdir -p "$ASSETS_DIR/runtime/armeabi-v7a" # arm guest
+mkdir -p "$ASSETS_DIR/runtime/x86_64"      # x86_64 guest
+mkdir -p "$ASSETS_DIR/runtime/x86"         # i386 guest
 
 # Create temporary directory
 TEMP_DIR=$(mktemp -d)
@@ -35,58 +37,90 @@ RELEASE_URL="https://github.com/cyanmint/shirobako/releases/download/main"
 echo ""
 echo "Downloading vendored QEMU binaries from GitHub release..."
 echo "Architecture support matrix:"
-echo "  - arm32 host: only arm32 guest natively (no QEMU)"
-echo "  - arm64+arm32 host: arm32/arm64 natively, x86_64 via QEMU"
-echo "  - arm64 only host: arm64 natively, arm32/x86_64 via QEMU"
-echo "  - amd64 host: arm64/arm32 via QEMU, x86_64 natively"
+echo "  - arm host: arm natively, i386 via QEMU"
+echo "  - i386 host: i386 natively, arm via QEMU"
+echo "  - aarch64 host: aarch64 natively, x86_64/i386/arm via QEMU"
+echo "  - x86_64 host: x86_64 natively, aarch64/arm/i386 via QEMU"
 echo ""
 
-# For arm64-v8a host
-echo "Downloading QEMU binaries for arm64-v8a host..."
+# For aarch64 (arm64-v8a) host
+echo "Downloading QEMU binaries for aarch64 host..."
 
-# arm64-qemu-arm (for running arm32 apps on arm64-only devices)
-if wget -q "${RELEASE_URL}/arm64-qemu-arm" -O arm64-qemu-arm; then
-    chmod +x arm64-qemu-arm
-    cp arm64-qemu-arm "$OLDPWD/$ASSETS_DIR/qemu/arm64-v8a/qemu-arm-static"
-    echo "  ✓ Downloaded arm64-qemu-arm (arm32 guest on arm64 host)"
+if wget -q "${RELEASE_URL}/aarch64-qemu-arm" -O aarch64-qemu-arm; then
+    chmod +x aarch64-qemu-arm
+    cp aarch64-qemu-arm "$OLDPWD/$ASSETS_DIR/qemu/arm64-v8a/qemu-arm-static"
+    echo "  ✓ Downloaded aarch64-qemu-arm (arm guest on aarch64 host)"
 else
-    echo "  ✗ Failed to download arm64-qemu-arm"
+    echo "  ✗ Failed to download aarch64-qemu-arm"
 fi
 
-# arm64-qemu-x86_64 (for running x86_64 apps on arm64 devices)
-if wget -q "${RELEASE_URL}/arm64-qemu-x86_64" -O arm64-qemu-x86_64; then
-    chmod +x arm64-qemu-x86_64
-    cp arm64-qemu-x86_64 "$OLDPWD/$ASSETS_DIR/qemu/arm64-v8a/qemu-x86_64-static"
-    echo "  ✓ Downloaded arm64-qemu-x86_64 (x86_64 guest on arm64 host)"
+if wget -q "${RELEASE_URL}/aarch64-qemu-i386" -O aarch64-qemu-i386; then
+    chmod +x aarch64-qemu-i386
+    cp aarch64-qemu-i386 "$OLDPWD/$ASSETS_DIR/qemu/arm64-v8a/qemu-i386-static"
+    echo "  ✓ Downloaded aarch64-qemu-i386 (i386 guest on aarch64 host)"
 else
-    echo "  ✗ Failed to download arm64-qemu-x86_64"
+    echo "  ✗ Failed to download aarch64-qemu-i386"
 fi
 
-# For x86_64 (amd64) host
+if wget -q "${RELEASE_URL}/aarch64-qemu-x86_64" -O aarch64-qemu-x86_64; then
+    chmod +x aarch64-qemu-x86_64
+    cp aarch64-qemu-x86_64 "$OLDPWD/$ASSETS_DIR/qemu/arm64-v8a/qemu-x86_64-static"
+    echo "  ✓ Downloaded aarch64-qemu-x86_64 (x86_64 guest on aarch64 host)"
+else
+    echo "  ✗ Failed to download aarch64-qemu-x86_64"
+fi
+
+# For arm (armeabi-v7a) host
+echo ""
+echo "Downloading QEMU binaries for arm host..."
+
+if wget -q "${RELEASE_URL}/arm-qemu-i386" -O arm-qemu-i386; then
+    chmod +x arm-qemu-i386
+    cp arm-qemu-i386 "$OLDPWD/$ASSETS_DIR/qemu/armeabi-v7a/qemu-i386-static"
+    echo "  ✓ Downloaded arm-qemu-i386 (i386 guest on arm host)"
+else
+    echo "  ✗ Failed to download arm-qemu-i386"
+fi
+
+# For x86_64 host
 echo ""
 echo "Downloading QEMU binaries for x86_64 host..."
 
-# amd64-qemu-aarch64 (for running arm64 apps on x86_64 devices)
-if wget -q "${RELEASE_URL}/amd64-qemu-aarch64" -O amd64-qemu-aarch64; then
-    chmod +x amd64-qemu-aarch64
-    cp amd64-qemu-aarch64 "$OLDPWD/$ASSETS_DIR/qemu/x86_64/qemu-aarch64-static"
-    echo "  ✓ Downloaded amd64-qemu-aarch64 (arm64 guest on amd64 host)"
+if wget -q "${RELEASE_URL}/x86_64-qemu-aarch64" -O x86_64-qemu-aarch64; then
+    chmod +x x86_64-qemu-aarch64
+    cp x86_64-qemu-aarch64 "$OLDPWD/$ASSETS_DIR/qemu/x86_64/qemu-aarch64-static"
+    echo "  ✓ Downloaded x86_64-qemu-aarch64 (aarch64 guest on x86_64 host)"
 else
-    echo "  ✗ Failed to download amd64-qemu-aarch64"
+    echo "  ✗ Failed to download x86_64-qemu-aarch64"
 fi
 
-# amd64-qemu-arm (for running arm32 apps on x86_64 devices)
-if wget -q "${RELEASE_URL}/amd64-qemu-arm" -O amd64-qemu-arm; then
-    chmod +x amd64-qemu-arm
-    cp amd64-qemu-arm "$OLDPWD/$ASSETS_DIR/qemu/x86_64/qemu-arm-static"
-    echo "  ✓ Downloaded amd64-qemu-arm (arm32 guest on amd64 host)"
+if wget -q "${RELEASE_URL}/x86_64-qemu-arm" -O x86_64-qemu-arm; then
+    chmod +x x86_64-qemu-arm
+    cp x86_64-qemu-arm "$OLDPWD/$ASSETS_DIR/qemu/x86_64/qemu-arm-static"
+    echo "  ✓ Downloaded x86_64-qemu-arm (arm guest on x86_64 host)"
 else
-    echo "  ✗ Failed to download amd64-qemu-arm"
+    echo "  ✗ Failed to download x86_64-qemu-arm"
 fi
 
-# Note: armeabi-v7a host doesn't need QEMU (runs arm32 natively only)
+if wget -q "${RELEASE_URL}/x86_64-qemu-i386" -O x86_64-qemu-i386; then
+    chmod +x x86_64-qemu-i386
+    cp x86_64-qemu-i386 "$OLDPWD/$ASSETS_DIR/qemu/x86_64/qemu-i386-static"
+    echo "  ✓ Downloaded x86_64-qemu-i386 (i386 guest on x86_64 host)"
+else
+    echo "  ✗ Failed to download x86_64-qemu-i386"
+fi
+
+# For i386 (x86) host
 echo ""
-echo "Note: armeabi-v7a host runs arm32 guests natively only (no QEMU support)"
+echo "Downloading QEMU binaries for i386 host..."
+
+if wget -q "${RELEASE_URL}/i386-qemu-arm" -O i386-qemu-arm; then
+    chmod +x i386-qemu-arm
+    cp i386-qemu-arm "$OLDPWD/$ASSETS_DIR/qemu/x86/qemu-arm-static"
+    echo "  ✓ Downloaded i386-qemu-arm (arm guest on i386 host)"
+else
+    echo "  ✗ Failed to download i386-qemu-arm"
+fi
 
 ###############################
 # Download vendored Android runtime
@@ -150,32 +184,38 @@ extract_from_apex() {
     fi
 }
 
-# Download arm64 runtime APEX (contains both 64-bit and 32-bit ARM libraries)
+# Download ARM runtime APEX (contains both aarch64 and arm)
 echo ""
-echo "Downloading arm64 Android runtime..."
-if wget -q "${RELEASE_URL}/arm64-com.android.runtime.apex" -O arm64-runtime.apex; then
-    echo "  ✓ Downloaded arm64-com.android.runtime.apex"
+echo "Downloading ARM Android runtime..."
+if wget -q "${RELEASE_URL}/arm+aarch64-com.android.runtime.apex" -O arm-runtime.apex; then
+    echo "  ✓ Downloaded arm+aarch64-com.android.runtime.apex"
     
-    # Extract 64-bit ARM runtime
-    extract_from_apex "arm64-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a" "true"
+    # Extract 64-bit ARM (aarch64) runtime
+    extract_from_apex "arm-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/arm64-v8a" "true"
     
     # Extract 32-bit ARM runtime (from /lib directory)
-    extract_from_apex "arm64-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a" "false"
+    extract_from_apex "arm-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/armeabi-v7a" "false"
     
-    rm -f arm64-runtime.apex
+    rm -f arm-runtime.apex
 else
-    echo "  ✗ Failed to download arm64-com.android.runtime.apex"
+    echo "  ✗ Failed to download arm+aarch64-com.android.runtime.apex"
 fi
 
-# Download x86_64 runtime (from amd64 APEX)
+# Download x86 runtime APEX (contains both x86_64 and i386)
 echo ""
-echo "Downloading x86_64 Android runtime..."
-if wget -q "${RELEASE_URL}/amd64-com.android.runtime.apex" -O amd64-runtime.apex; then
-    echo "  ✓ Downloaded amd64-com.android.runtime.apex for x86_64"
-    extract_from_apex "amd64-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/x86_64" "true"
-    rm -f amd64-runtime.apex
+echo "Downloading x86 Android runtime..."
+if wget -q "${RELEASE_URL}/i386+x86_64-com.android.runtime.apex" -O x86-runtime.apex; then
+    echo "  ✓ Downloaded i386+x86_64-com.android.runtime.apex"
+    
+    # Extract 64-bit x86 (x86_64) runtime
+    extract_from_apex "x86-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/x86_64" "true"
+    
+    # Extract 32-bit x86 (i386) runtime (from /lib directory)
+    extract_from_apex "x86-runtime.apex" "$OLDPWD/$ASSETS_DIR/runtime/x86" "false"
+    
+    rm -f x86-runtime.apex
 else
-    echo "  ✗ Failed to download amd64-com.android.runtime.apex for x86_64"
+    echo "  ✗ Failed to download i386+x86_64-com.android.runtime.apex"
 fi
 
 # Return to original directory
@@ -200,8 +240,13 @@ find "$ASSETS_DIR/runtime" -type f ! -name ".gitkeep" -exec ls -lh {} \; 2>/dev/
 
 echo ""
 echo "Architecture support:"
-echo "  ✓ arm64-v8a host: native arm64, QEMU for arm32 & x86_64"
-echo "  ✓ armeabi-v7a host: native arm32 only"
-echo "  ✓ x86_64 host: native x86_64, QEMU for arm64 & arm32"
+echo "  ✓ arm host: native arm, QEMU for i386"
+echo "  ✓ i386 host: native i386, QEMU for arm"
+echo "  ✓ aarch64 host: native aarch64, QEMU for x86_64/i386/arm"
+echo "  ✓ x86_64 host: native x86_64, QEMU for aarch64/arm/i386"
+echo ""
+echo "APK variants:"
+echo "  - shiro.bako (universal): arm, i386, aarch64, x86_64"
+echo "  - shiro.bako.lib32 (32-bit): arm, i386"
 
 exit 0
