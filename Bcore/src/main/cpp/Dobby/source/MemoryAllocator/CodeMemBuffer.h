@@ -2,6 +2,7 @@
 
 #include "dobby/common.h"
 #include "MemoryAllocator.h"
+#include "core/arch/Cpu.h"
 struct MemBuffer {
   uint8_t *buffer;
   uint32_t buffer_size;

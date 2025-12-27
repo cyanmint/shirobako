@@ -50,7 +50,8 @@ str TMP_REG_0, [sp, #(1 * 8)]
 // call convention: x0 = register context, x1 = interceptor entry
 mov x0, sp
 ldr x1, [sp, #(2 * 8 + 2 * 8 + 30 * 8 + 8 * 16)]
-adr TMP_REG_0, cdecl(common_closure_bridge_handler)
+adrp TMP_REG_0, common_closure_bridge_handler_addr
+ldr TMP_REG_0, [TMP_REG_0, #:lo12:common_closure_bridge_handler_addr]
 blr TMP_REG_0
 
 // restore stack, saved original sp

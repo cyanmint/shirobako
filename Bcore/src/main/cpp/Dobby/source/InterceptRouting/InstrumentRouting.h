@@ -47,7 +47,8 @@ PUBLIC inline int DobbyInstrument(void *address, dobby_instrument_callback_t pre
   }
 
   features::apple::arm64e_pac_strip(address);
-  features::android::make_memory_readable(address, 4);
+  // Disabled: features::android::make_memory_readable(address, 4);
+  // Note: Memory should already be readable for instrumentation
 
   DEBUG_LOG("----- [DobbyInstrument: %p] -----", address);
 

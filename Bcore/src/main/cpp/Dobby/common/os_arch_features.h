@@ -33,14 +33,15 @@ template <typename T> inline T arm64e_pac_strip_and_sign(T &addr) {
 }
 } // namespace apple
 
-namespace android {
-inline void make_memory_readable(void *address, size_t size) {
-#if defined(ANDROID)
-  auto page = (void *)ALIGN_FLOOR(address, OSMemory::PageSize());
-  if (!OSMemory::SetPermission(page, OSMemory::PageSize(), kReadExecute)) {
-    return;
-  }
-#endif
-}
-} // namespace android
+// Disabled due to circular dependency - not used in codebase
+// namespace android {
+// inline void make_memory_readable(void *address, size_t size) {
+// #if defined(ANDROID)
+//   auto page = (void *)ALIGN_FLOOR(address, OSMemory::PageSize());
+//   if (!OSMemory::SetPermission(page, OSMemory::PageSize(), kReadExecute)) {
+//     return;
+//   }
+// #endif
+// }
+// } // namespace android
 } // namespace features

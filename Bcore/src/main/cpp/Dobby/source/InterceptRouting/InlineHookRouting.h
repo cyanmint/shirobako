@@ -36,7 +36,8 @@ PUBLIC inline int DobbyHook(void *address, void *fake_func, void **out_origin_fu
 
   features::apple::arm64e_pac_strip(address);
   features::apple::arm64e_pac_strip(fake_func);
-  features::android::make_memory_readable(address, 4);
+  // Disabled: features::android::make_memory_readable(address, 4);
+  // Note: Memory should already be readable for inline hooking
 
   DEBUG_LOG("----- [DobbyHook: %p] -----", address);
 
