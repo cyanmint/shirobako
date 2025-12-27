@@ -22,7 +22,7 @@ android {
         consumerProguardFiles "consumer-rules.pro"
         ndk {
             // Build for ARM architectures - Dobby patched for NDK 26+ compatibility
-            abiFilters 'arm64-v8a', 'armeabi-v7a'
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
         }
     }
     
