@@ -21,9 +21,8 @@ android {
 
         consumerProguardFiles "consumer-rules.pro"
         ndk {
-            // Only ARM architectures (Dobby library limitation)
-            // x86/x86_64 virtualization provided via QEMU
-            abiFilters 'arm64-v8a', 'armeabi-v7a'
+            // All 4 architectures supported with vendored Dobby source
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
         }
     }
     
@@ -41,10 +40,9 @@ android {
     }
 
     externalNativeBuild {
-        ndkBuild {
-            path 'src/main/cpp/Android.mk'
+        cmake {
+            path 'src/main/cpp/CMakeLists.txt'
         }
-        ndkVersion = "29.0.13846066"
     }
 
     compileOptions {

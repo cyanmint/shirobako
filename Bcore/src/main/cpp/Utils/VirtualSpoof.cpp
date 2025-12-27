@@ -3,7 +3,7 @@
 #include "./xdl.h"
 #include <android/log.h>
 #include <dlfcn.h>
-#include "Dobby/dobby.h"
+#include "dobby.h"
 
 /**
  * created by alex5402 on 4/9/21.
