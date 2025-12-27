@@ -8,24 +8,32 @@ android {
     namespace 'top.niunaijun.blackboxa'
     compileSdk rootProject.ext.compileSdkVersion
     ndkVersion = "29.0.13846066"
+    
+    flavorDimensions "abi"
+    
+    productFlavors {
+        universal {
+            dimension "abi"
+            applicationId "shiro.bako"
+            versionNameSuffix ""
+            // Note: Native libraries (Dobby) only available for ARM
+            // But APK includes QEMU and runtime for all architectures
+        }
+        lib32 {
+            dimension "abi"
+            applicationId "shiro.bako.lib32"
+            versionNameSuffix "-lib32"
+            // 32-bit ARM only (Dobby limitation)
+        }
+    }
+    
     defaultConfig {
-        applicationId "top.niunaijun.blackboxa"
         minSdk rootProject.ext.minSdk
         targetSdk rootProject.ext.targetSdkVersion
         versionCode rootProject.ext.versionCode
         versionName rootProject.ext.versionName
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-
-        splits {
-            abi {
-                enable true
-                reset()
-                //noinspection ChromeOsAbiSupport
-                include 'armeabi-v7a', 'arm64-v8a', 'x86_64'
-                universalApk true
-            }
-        }
     }
     
     // Handle large QEMU assets properly
@@ -43,7 +51,7 @@ android {
     
     // Prevent compression of QEMU assets
     androidResources {
-        noCompress 'qemu-arm-static', 'qemu-aarch64-static', 'qemu-x86_64-static', 'linker', 'linker64'
+        noCompress 'qemu-arm-static', 'qemu-aarch64-static', 'qemu-x86_64-static', 'qemu-i386-static', 'linker', 'linker64'
         noCompress += ['libc.so', 'libm.so', 'libdl.so']
     }
 

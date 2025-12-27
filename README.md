@@ -1,11 +1,11 @@
-# 🚀 Virtual Engine · BlackBox (Enhanced Edition)
+# 🚀 Shirobako · Fork of BlackBox
 
 <p align="center">
-  <img src="assets/usage.gif" alt="BlackBox Banner" width="100%"/>
+  <img src="assets/usage.gif" alt="Shirobako Banner" width="100%"/>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Enhanced%20by-ALEX502-ff6b35.svg" alt="Enhanced by ALEX502"/>
+  <img src="https://img.shields.io/badge/Fork%20of-BlackBox-ff6b35.svg" alt="Fork of BlackBox"/>
   <img src="https://img.shields.io/badge/language-java-brightgreen.svg" alt="Java"/>
   <img src="https://img.shields.io/badge/language-kotlin-blue.svg" alt="Kotlin"/>
   <img src="https://img.shields.io/badge/android-5.0%2B-green.svg" alt="Android 5.0+"/>
@@ -20,15 +20,15 @@
 ---
 
 <p align="center">
-  <strong>🎯 Enhanced Edition by ALEX502</strong><br/>
-  <em>Comprehensive bug fixes, security improvements, and performance optimizations</em>
+  <strong>🎯 Shirobako - Enhanced Fork of BlackBox</strong><br/>
+  <em>Forked from the original BlackBox project with enhancements and bug fixes</em>
 </p>
 
 ---
 
 ## 📖 Overview
 
-**BlackBox** is a powerful virtual engine that enables you to clone, run, and manage virtual applications on Android devices without requiring installation of APK files. This enhanced edition includes comprehensive bug fixes, security improvements, and performance optimizations.
+**Shirobako** is a fork of the BlackBox virtual engine that enables you to clone, run, and manage virtual applications on Android devices without requiring installation of APK files. This fork includes comprehensive bug fixes, security improvements, and performance optimizations.
 
 ### 🌟 Key Features
 
