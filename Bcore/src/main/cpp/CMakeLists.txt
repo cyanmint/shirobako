@@ -5,14 +5,35 @@ cmake_minimum_required(VERSION 3.10.2)
 
 project("blackbox")
 
-# Configure Dobby
-set(DOBBY_DEBUG OFF CACHE INTERNAL "")
-set(DOBBY_GENERATE_SHARED OFF CACHE INTERNAL "")
-set(Plugin.SymbolResolver ON CACHE INTERNAL "")
-set(Plugin.Android.BionicLinkerUtil OFF CACHE INTERNAL "")
-
-# Add Dobby subdirectory
-add_subdirectory(Dobby dobby_build)
+# Determine if building for 32-bit or 64-bit architecture
+if(ANDROID_ABI STREQUAL "armeabi-v7a" OR ANDROID_ABI STREQUAL "x86")
+    # Use prebuilt Dobby binaries for 32-bit architectures
+    message(STATUS "Using prebuilt Dobby for 32-bit architecture: ${ANDROID_ABI}")
+    
+    # Import prebuilt Dobby library
+    add_library(dobby STATIC IMPORTED)
+    set_target_properties(dobby PROPERTIES
+        IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/Dobby32/${ANDROID_ABI}/libdobby.a
+    )
+    
+    # Set Dobby include directory for 32-bit
+    set(DOBBY_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Dobby32/include)
+else()
+    # Build Dobby from source for 64-bit architectures (arm64-v8a, x86_64)
+    message(STATUS "Building Dobby from source for 64-bit architecture: ${ANDROID_ABI}")
+    
+    # Configure Dobby
+    set(DOBBY_DEBUG OFF CACHE INTERNAL "")
+    set(DOBBY_GENERATE_SHARED OFF CACHE INTERNAL "")
+    set(Plugin.SymbolResolver ON CACHE INTERNAL "")
+    set(Plugin.Android.BionicLinkerUtil OFF CACHE INTERNAL "")
+    
+    # Add Dobby64 subdirectory
+    add_subdirectory(Dobby64 dobby_build)
+    
+    # Set Dobby include directory for 64-bit
+    set(DOBBY_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Dobby64/include)
+endif()
 
 # XDL library
 add_library(xdl STATIC
@@ -45,7 +66,7 @@ add_library(blackbox SHARED
 
 target_include_directories(blackbox PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/Dobby/include
+    ${DOBBY_INCLUDE_DIR}
 )
 
 target_compile_options(blackbox PRIVATE
