@@ -21,9 +21,10 @@ android {
 
         consumerProguardFiles "consumer-rules.pro"
         ndk {
-            // Build for 64-bit architectures - Dobby patched for NDK 26+ compatibility
-            // 32-bit ARM (armeabi-v7a) and x86 have API incompatibilities requiring major refactoring
-            abiFilters 'arm64-v8a', 'x86_64'
+            // Build for all supported architectures
+            // 64-bit: Build Dobby from patched source (Dobby64)
+            // 32-bit: Use prebuilt Dobby binaries (Dobby32) - QEMU emulation support
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
         }
     }
     

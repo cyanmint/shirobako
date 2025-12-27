@@ -1,16 +1,48 @@
-# Patches Applied to Vendored Dobby for NDK 26+ Compatibility
+# Dobby Build Configuration for NDK 26+ Compatibility
 
-This document describes the patches applied to the vendored Dobby hooking framework to make it compatible with Android NDK 26.1.10909125 and newer.
+This document describes the Dobby hooking framework build configuration used in this project.
+
+## Dual Dobby Setup
+
+The project uses a **dual Dobby configuration** to support all Android architectures while working around NDK 26+ compatibility issues:
+
+### Dobby64 (Source Build for 64-bit)
+- **Location**: `Bcore/src/main/cpp/Dobby64/`
+- **Architectures**: arm64-v8a, x86_64
+- **Method**: Built from patched vendored source
+- **Patches Applied**: 14 patches for NDK 26+ compatibility (see details below)
+
+### Dobby32 (Prebuilt for 32-bit)
+- **Location**: `Bcore/src/main/cpp/Dobby32/`
+- **Architectures**: armeabi-v7a
+- **Method**: Uses prebuilt static libraries from [3equals3/DobbyHook](https://github.com/3equals3/DobbyHook)
+- **Rationale**: 32-bit architectures have extensive API incompatibilities that would require major assembler refactoring
+
+## Architecture Support Matrix
+
+| Architecture | Build Method | Dobby Source | Status | Use Case |
+|-------------|--------------|--------------|--------|----------|
+| arm64-v8a | Source (patched) | Dobby64/ | ✅ Working | Native ARM64 devices |
+| x86_64 | Source (patched) | Dobby64/ | ✅ Working | Native x86_64 devices |
+| armeabi-v7a | Prebuilt binary | Dobby32/ | ✅ Working | QEMU emulation on ARM64 |
+| x86 | Not supported | - | ❌ Not included | - |
+
+## QEMU Emulation Support
+
+The inclusion of armeabi-v7a prebuilt binaries enables **QEMU cross-architecture emulation**, allowing:
+- ARM64-only devices to run apps with ARM32-only native libraries
+- Hooking support for apps running under QEMU emulation
+- Full BlackBox virtualization features for all app architectures
 
 ## Summary
 
-The vendored Dobby library had several compatibility issues with modern NDK toolchains. These patches address missing headers, API changes, and position-independent code (PIC) requirements.
+The vendored Dobby library (Dobby64) had several compatibility issues with modern NDK toolchains. These patches address missing headers, API changes, and position-independent code (PIC) requirements for 64-bit architectures.
 
 ## Patches Applied
 
 ### 1. ProcessRuntime.cc - Missing `<inttypes.h>` Include
 
-**File**: `Bcore/src/main/cpp/Dobby/source/Backend/UserMode/PlatformUtil/Linux/ProcessRuntime.cc`
+**File**: `Bcore/src/main/cpp/Dobby64/source/Backend/UserMode/PlatformUtil/Linux/ProcessRuntime.cc`
 
 **Issue**: The file uses `PRIxPTR` macros but didn't include `<inttypes.h>`, causing compilation errors with newer NDK versions.
 
@@ -26,7 +58,7 @@ The vendored Dobby library had several compatibility issues with modern NDK tool
 
 ### 2. ProcessRuntime.cc - RuntimeModule Struct Member Name
 
-**File**: `Bcore/src/main/cpp/Dobby/source/Backend/UserMode/PlatformUtil/Linux/ProcessRuntime.cc`
+**File**: `Bcore/src/main/cpp/Dobby64/source/Backend/UserMode/PlatformUtil/Linux/ProcessRuntime.cc`
 
 **Issue**: Code used `module.load_address` but the struct definition in `ProcessRuntime.h` uses `module.base`.
 
@@ -42,7 +74,7 @@ module.base = (void *)region_start;
 
 ### 3. ProcessRuntime.cc - MemRange Accessor Method
 
-**File**: `Bcore/src/main/cpp/Dobby/source/Backend/UserMode/PlatformUtil/Linux/ProcessRuntime.cc`
+**File**: `Bcore/src/main/cpp/Dobby64/source/Backend/UserMode/PlatformUtil/Linux/ProcessRuntime.cc`
 
 **Issue**: Comparator function tried to access `start` as a property instead of calling the `start()` method.
 
@@ -58,7 +90,7 @@ return (a.start() < b.start());
 
 ### 4. dobby_symbol_resolver.cc - RuntimeModule Member Name
 
-**File**: `Bcore/src/main/cpp/Dobby/builtin-plugin/SymbolResolver/elf/dobby_symbol_resolver.cc`
+**File**: `Bcore/src/main/cpp/Dobby64/builtin-plugin/SymbolResolver/elf/dobby_symbol_resolver.cc`
 
 **Issue**: Same as #2 - used `load_address` instead of `base`.
 
@@ -66,7 +98,7 @@ return (a.start() < b.start());
 
 ### 5. code-patch-tool-posix.cc - Missing Header Include
 
-**File**: `Bcore/src/main/cpp/Dobby/source/Backend/UserMode/ExecMemory/code-patch-tool-posix.cc`
+**File**: `Bcore/src/main/cpp/Dobby64/source/Backend/UserMode/ExecMemory/code-patch-tool-posix.cc`
 
 **Issue**: Included non-existent `"core/arch/Cpu.h"` instead of the proper header.
 
@@ -82,7 +114,7 @@ return (a.start() < b.start());
 
 ### 6. os_arch_features.h - Circular Dependency Issue
 
-**File**: `Bcore/src/main/cpp/Dobby/common/os_arch_features.h`
+**File**: `Bcore/src/main/cpp/Dobby64/common/os_arch_features.h`
 
 **Issue**: The `make_memory_readable()` function caused a circular dependency by using `OSMemory` which is defined later in the include chain.
 
@@ -98,8 +130,8 @@ return (a.start() < b.start());
 ### 7. InlineHookRouting.h & InstrumentRouting.h - Removed Circular Dependency Call
 
 **Files**: 
-- `Bcore/src/main/cpp/Dobby/source/InterceptRouting/InlineHookRouting.h`
-- `Bcore/src/main/cpp/Dobby/source/InterceptRouting/InstrumentRouting.h`
+- `Bcore/src/main/cpp/Dobby64/source/InterceptRouting/InlineHookRouting.h`
+- `Bcore/src/main/cpp/Dobby64/source/InterceptRouting/InstrumentRouting.h`
 
 **Issue**: These files called the now-disabled `make_memory_readable()` function.
 
@@ -116,7 +148,7 @@ features::android::make_memory_readable(address, 4);
 
 ### 8. closure_bridge_arm64.asm - ARM64 PIC Compliance
 
-**File**: `Bcore/src/main/cpp/Dobby/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm`
+**File**: `Bcore/src/main/cpp/Dobby64/source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm`
 
 **Issue**: Using `adr` instruction to load function address causes relocation error `R_AARCH64_ADR_PREL_LO21` with PIC code.
 
@@ -135,7 +167,7 @@ blr TMP_REG_0
 
 ### 9. Cpu.h - Created Missing Stub Header
 
-**File**: `Bcore/src/main/cpp/Dobby/source/core/arch/Cpu.h` (NEW FILE)
+**File**: `Bcore/src/main/cpp/Dobby64/source/core/arch/Cpu.h` (NEW FILE)
 
 **Issue**: Multiple files included `"core/arch/Cpu.h"` which didn't exist in the vendored Dobby.
 
@@ -163,7 +195,7 @@ namespace CpuFeatures {
 
 ### 10. CodeMemBuffer.h - Added Missing Include
 
-**File**: `Bcore/src/main/cpp/Dobby/source/MemoryAllocator/CodeMemBuffer.h`
+**File**: `Bcore/src/main/cpp/Dobby64/source/MemoryAllocator/CodeMemBuffer.h`
 
 **Issue**: File uses ARM instruction types but didn't include the header that defines them.
 
@@ -179,7 +211,7 @@ namespace CpuFeatures {
 
 ### 11. assembler-arm.h - Replaced Missing Header
 
-**File**: `Bcore/src/main/cpp/Dobby/source/core/assembler/assembler-arm.h`
+**File**: `Bcore/src/main/cpp/Dobby64/source/core/assembler/assembler-arm.h`
 
 **Issue**: Included non-existent `"MemoryAllocator/CodeBuffer/code_buffer_arm.h"`.
 
@@ -195,7 +227,7 @@ namespace CpuFeatures {
 
 ### 12. CMakeLists.txt - Architecture-Specific Source Files
 
-**File**: `Bcore/src/main/cpp/Dobby/CMakeLists.txt`
+**File**: `Bcore/src/main/cpp/Dobby64/CMakeLists.txt`
 
 **Issue**: All architecture-specific closure trampoline files (ARM, ARM64, x86, x86_64) were included unconditionally, causing build failures when compiling for different architectures. For example, ARM64 assembly files would fail to compile with the x86_64 assembler.
 
@@ -232,7 +264,7 @@ endif ()
 
 ### 13. compiler_and_linker.cmake - x86/x86_64 Assembler Preprocessor Support
 
-**File**: `Bcore/src/main/cpp/Dobby/cmake/compiler_and_linker.cmake`
+**File**: `Bcore/src/main/cpp/Dobby64/cmake/compiler_and_linker.cmake`
 
 **Issue**: The `-x assembler-with-cpp` flag was only set for ARM and ARM64, causing x86/x86_64 assembly files with C preprocessor macros (like `cdecl()`) to fail compilation.
 
@@ -260,7 +292,7 @@ endif ()
 
 ### 14. CodeMemBuffer.h - CodeBuffer Compatibility Alias
 
-**File**: `Bcore/src/main/cpp/Dobby/source/MemoryAllocator/CodeMemBuffer.h`
+**File**: `Bcore/src/main/cpp/Dobby64/source/MemoryAllocator/CodeMemBuffer.h`
 
 **Issue**: 32-bit architecture assemblers (ARM and x86) use the old `CodeBuffer` type name, but the vendored Dobby uses `CodeMemBuffer`.
 
