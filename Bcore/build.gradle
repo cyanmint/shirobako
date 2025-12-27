@@ -21,8 +21,8 @@ android {
 
         consumerProguardFiles "consumer-rules.pro"
         ndk {
-            // All 4 architectures supported with vendored Dobby source
-            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
+            // Temporarily limit to arm64-v8a until remaining Dobby patches are completed
+            abiFilters 'arm64-v8a'
         }
     }
     
