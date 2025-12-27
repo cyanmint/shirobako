@@ -12,14 +12,25 @@ typedef uint32_t arm_inst_t;
 typedef uint16_t thumb1_inst_t;
 typedef uint32_t thumb2_inst_t;
 
+// Forward declarations for platform-specific implementations
+// Actual implementations are in clear-cache-tool-all.c
+#ifdef __cplusplus
+extern "C" {
+#endif
+void ClearCache(void *start, void *end);
+#ifdef __cplusplus
+}
+#endif
+
 namespace CpuFeatures {
-  // Stub function declarations
+  // Forward to actual implementation
   inline void ClearCache(void *start, void *end) {
-    // Implementation is in platform-specific files
+    ::ClearCache(start, end);
   }
   
   inline void FlushICache(void *start, void *end) {
-    // Implementation is in platform-specific files  
+    // FlushICache typically calls ClearCache on most platforms
+    ::ClearCache(start, end);
   }
 }
 
