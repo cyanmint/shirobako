@@ -21,8 +21,8 @@ android {
 
         consumerProguardFiles "consumer-rules.pro"
         ndk {
-            // Temporarily limit to arm64-v8a until remaining Dobby patches are completed
-            abiFilters 'arm64-v8a'
+            // Build for arm64-v8a and x86_64 - Dobby patched for NDK 26+ compatibility
+            abiFilters 'arm64-v8a', 'x86_64'
         }
     }
     

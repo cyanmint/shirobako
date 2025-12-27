@@ -43,6 +43,10 @@ if (PROCESSOR.ARM)
   set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -arch armv7 -x assembler-with-cpp")
 elseif (PROCESSOR.AARCH64)
   set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -x assembler-with-cpp")
+elseif (PROCESSOR.X86)
+  set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -x assembler-with-cpp")
+elseif (PROCESSOR.X86_64)
+  set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -x assembler-with-cpp")
 endif ()
 
 # sync cxx with c flags

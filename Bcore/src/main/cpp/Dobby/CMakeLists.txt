@@ -137,32 +137,47 @@ set(dobby.SOURCE_FILE_LIST ${dobby.SOURCE_FILE_LIST}
   source/TrampolineBridge/Trampoline/trampoline_x86.cc
   source/TrampolineBridge/Trampoline/trampoline_x64.cc
 
-  # closure trampoline bridge - arm
-  source/TrampolineBridge/ClosureTrampolineBridge/arm/helper_arm.cc
-  source/TrampolineBridge/ClosureTrampolineBridge/arm/closure_bridge_arm.cc
-  source/TrampolineBridge/ClosureTrampolineBridge/arm/ClosureTrampolineARM.cc
-  # closure trampoline bridge - arm64
-  source/TrampolineBridge/ClosureTrampolineBridge/arm64/helper_arm64.cc
-  source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.cc
-  source/TrampolineBridge/ClosureTrampolineBridge/arm64/ClosureTrampolineARM64.cc
-  source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm
-  source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_trampoline_arm64.asm
-  # closure trampoline bridge - x86
-  source/TrampolineBridge/ClosureTrampolineBridge/x86/helper_x86.cc
-  source/TrampolineBridge/ClosureTrampolineBridge/x86/closure_bridge_x86.cc
-  source/TrampolineBridge/ClosureTrampolineBridge/x86/ClosureTrampolineX86.cc
-  # closure trampoline bridge - x64
-  source/TrampolineBridge/ClosureTrampolineBridge/x64/helper_x64.cc
-  source/TrampolineBridge/ClosureTrampolineBridge/x64/closure_bridge_x64.cc
-  source/TrampolineBridge/ClosureTrampolineBridge/x64/ClosureTrampolineX64.cc
-  source/TrampolineBridge/ClosureTrampolineBridge/x64/closure_bridge_x64.asm
-  source/TrampolineBridge/ClosureTrampolineBridge/x64/closure_trampoline_x64.asm
-
   # plugin register
 
   # main
   source/dobby.cpp
   )
+
+# Architecture-specific closure trampoline bridge files
+if (PROCESSOR.ARM)
+  set(dobby.SOURCE_FILE_LIST ${dobby.SOURCE_FILE_LIST}
+    # closure trampoline bridge - arm
+    source/TrampolineBridge/ClosureTrampolineBridge/arm/helper_arm.cc
+    source/TrampolineBridge/ClosureTrampolineBridge/arm/closure_bridge_arm.cc
+    source/TrampolineBridge/ClosureTrampolineBridge/arm/ClosureTrampolineARM.cc
+    )
+elseif (PROCESSOR.AARCH64)
+  set(dobby.SOURCE_FILE_LIST ${dobby.SOURCE_FILE_LIST}
+    # closure trampoline bridge - arm64
+    source/TrampolineBridge/ClosureTrampolineBridge/arm64/helper_arm64.cc
+    source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.cc
+    source/TrampolineBridge/ClosureTrampolineBridge/arm64/ClosureTrampolineARM64.cc
+    source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_bridge_arm64.asm
+    source/TrampolineBridge/ClosureTrampolineBridge/arm64/closure_trampoline_arm64.asm
+    )
+elseif (PROCESSOR.X86)
+  set(dobby.SOURCE_FILE_LIST ${dobby.SOURCE_FILE_LIST}
+    # closure trampoline bridge - x86
+    source/TrampolineBridge/ClosureTrampolineBridge/x86/helper_x86.cc
+    source/TrampolineBridge/ClosureTrampolineBridge/x86/closure_bridge_x86.cc
+    source/TrampolineBridge/ClosureTrampolineBridge/x86/ClosureTrampolineX86.cc
+    )
+elseif (PROCESSOR.X86_64)
+  set(dobby.SOURCE_FILE_LIST ${dobby.SOURCE_FILE_LIST}
+    # closure trampoline bridge - x64
+    source/TrampolineBridge/ClosureTrampolineBridge/x64/helper_x64.cc
+    source/TrampolineBridge/ClosureTrampolineBridge/x64/closure_bridge_x64.cc
+    source/TrampolineBridge/ClosureTrampolineBridge/x64/ClosureTrampolineX64.cc
+    source/TrampolineBridge/ClosureTrampolineBridge/x64/closure_bridge_x64.asm
+    source/TrampolineBridge/ClosureTrampolineBridge/x64/closure_trampoline_x64.asm
+    )
+endif ()
+
 
 
 if (SYSTEM.Darwin AND NOT DOBBY_BUILD_KERNEL_MODE)

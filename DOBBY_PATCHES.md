@@ -193,25 +193,91 @@ namespace CpuFeatures {
 #include "MemoryAllocator/CodeMemBuffer.h"
 ```
 
+### 12. CMakeLists.txt - Architecture-Specific Source Files
+
+**File**: `Bcore/src/main/cpp/Dobby/CMakeLists.txt`
+
+**Issue**: All architecture-specific closure trampoline files (ARM, ARM64, x86, x86_64) were included unconditionally, causing build failures when compiling for different architectures. For example, ARM64 assembly files would fail to compile with the x86_64 assembler.
+
+**Fix**: Wrapped architecture-specific files in conditional blocks using PROCESSOR detection.
+
+```cmake
+# Before: All architectures included unconditionally
+set(dobby.SOURCE_FILE_LIST ${dobby.SOURCE_FILE_LIST}
+  source/TrampolineBridge/ClosureTrampolineBridge/arm/...
+  source/TrampolineBridge/ClosureTrampolineBridge/arm64/...
+  source/TrampolineBridge/ClosureTrampolineBridge/x86/...
+  source/TrampolineBridge/ClosureTrampolineBridge/x64/...
+  )
+
+# After: Architecture-specific conditionals
+if (PROCESSOR.ARM)
+  set(dobby.SOURCE_FILE_LIST ${dobby.SOURCE_FILE_LIST}
+    source/TrampolineBridge/ClosureTrampolineBridge/arm/...
+    )
+elseif (PROCESSOR.AARCH64)
+  set(dobby.SOURCE_FILE_LIST ${dobby.SOURCE_FILE_LIST}
+    source/TrampolineBridge/ClosureTrampolineBridge/arm64/...
+    )
+elseif (PROCESSOR.X86)
+  set(dobby.SOURCE_FILE_LIST ${dobby.SOURCE_FILE_LIST}
+    source/TrampolineBridge/ClosureTrampolineBridge/x86/...
+    )
+elseif (PROCESSOR.X86_64)
+  set(dobby.SOURCE_FILE_LIST ${dobby.SOURCE_FILE_LIST}
+    source/TrampolineBridge/ClosureTrampolineBridge/x64/...
+    )
+endif ()
+```
+
+### 13. compiler_and_linker.cmake - x86/x86_64 Assembler Preprocessor Support
+
+**File**: `Bcore/src/main/cpp/Dobby/cmake/compiler_and_linker.cmake`
+
+**Issue**: The `-x assembler-with-cpp` flag was only set for ARM and ARM64, causing x86/x86_64 assembly files with C preprocessor macros (like `cdecl()`) to fail compilation.
+
+**Fix**: Added the assembler-with-cpp flag for x86 and x86_64 processors.
+
+```cmake
+# Before: Only ARM/ARM64 had preprocessor support
+if (PROCESSOR.ARM)
+  set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -arch armv7 -x assembler-with-cpp")
+elseif (PROCESSOR.AARCH64)
+  set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -x assembler-with-cpp")
+endif ()
+
+# After: Added x86/x86_64 support
+if (PROCESSOR.ARM)
+  set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -arch armv7 -x assembler-with-cpp")
+elseif (PROCESSOR.AARCH64)
+  set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -x assembler-with-cpp")
+elseif (PROCESSOR.X86)
+  set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -x assembler-with-cpp")
+elseif (PROCESSOR.X86_64)
+  set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -x assembler-with-cpp")
+endif ()
+```
+
 ## Current Status
 
 ### Working
 - ✅ arm64-v8a architecture builds successfully
+- ✅ x86_64 architecture builds successfully  
 - ✅ All compilation and linking succeeds
 - ✅ APK generation works
 
 ### Remaining Work
 - ⚠️ armeabi-v7a: Has `CodeBuffer` vs `CodeMemBuffer` API incompatibility issues
-- ⚠️ x86 and x86_64: Not yet tested/patched
+- ⚠️ x86 (32-bit): Not yet tested/patched
 
 ## Build Configuration
 
-Temporarily limited to arm64-v8a only in `Bcore/build.gradle`:
+Currently builds for arm64-v8a and x86_64 in `Bcore/build.gradle`:
 
 ```gradle
 ndk {
-    // Temporarily limit to arm64-v8a until remaining Dobby patches are completed
-    abiFilters 'arm64-v8a'
+    // Build for arm64-v8a and x86_64 - Dobby patched for NDK 26+ compatibility
+    abiFilters 'arm64-v8a', 'x86_64'
 }
 ```
 
