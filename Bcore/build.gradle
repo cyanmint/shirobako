@@ -21,8 +21,9 @@ android {
 
         consumerProguardFiles "consumer-rules.pro"
         ndk {
-            // Include all 4 architectures for full cross-platform support
-            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
+            // Only ARM architectures (Dobby library limitation)
+            // x86/x86_64 virtualization provided via QEMU
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
         }
     }
     

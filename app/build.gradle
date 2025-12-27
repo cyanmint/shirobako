@@ -16,11 +16,14 @@ android {
             dimension "abi"
             applicationId "shiro.bako"
             versionNameSuffix ""
+            // Note: Native libraries (Dobby) only available for ARM
+            // But APK includes QEMU and runtime for all architectures
         }
         lib32 {
             dimension "abi"
             applicationId "shiro.bako.lib32"
             versionNameSuffix "-lib32"
+            // 32-bit ARM only (Dobby limitation)
         }
     }
     
@@ -31,32 +34,6 @@ android {
         versionName rootProject.ext.versionName
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-
-        splits {
-            abi {
-                enable true
-                reset()
-                //noinspection ChromeOsAbiSupport
-                // Include all 4 architectures: arm, aarch64, i386, x86_64
-                include 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
-                universalApk false  // We'll handle universal APK via flavors
-            }
-        }
-    }
-    
-    // Configure which ABIs to include per flavor
-    android.applicationVariants.all { variant ->
-        def flavorName = variant.flavorName
-        if (flavorName == "lib32") {
-            // 32-bit only: arm and i386
-            variant.outputs.each { output ->
-                def abiFilter = output.getFilter(com.android.build.OutputFile.ABI)
-                if (abiFilter != null && !(abiFilter in ['armeabi-v7a', 'x86'])) {
-                    output.setEnabled(false)
-                }
-            }
-        }
-        // universal flavor includes all ABIs by default
     }
     
     // Handle large QEMU assets properly
