@@ -40,18 +40,14 @@ public class AbiUtils {
         
         if (BlackBoxCore.is64Bit()) {
             // On 64-bit host (x86_64 or aarch64): Accept all architectures
-            // - 64-bit apps run natively
-            // - 32-bit apps run via QEMU emulation with Dobby32 support
+            // - 64-bit apps run natively or via QEMU
+            // - 32-bit apps run natively (compatibility) or via QEMU
             return true;
         } else {
-            // On 32-bit host: Accept all 32-bit, reject 64-bit-only apps
-            // - Accept apps that have 32-bit libraries (even if they also have 64-bit)
-            // - Reject apps that only have 64-bit libraries
-            // - No QEMU available for 32-bit host to emulate 64-bit guest
-            if (has32Bit) {
-                return true; // Accept if app has 32-bit libraries (regardless of 64-bit)
-            }
-            return false; // Reject if app only has 64-bit libraries
+            // On 32-bit host: Accept only 32-bit apps, reject 64-bit-only apps
+            // - 32-bit hosts can run 32-bit apps (native or QEMU for cross-arch)
+            // - 32-bit hosts CANNOT run 64-bit apps (no 64-bit QEMU on 32-bit host)
+            return has32Bit;
         }
     }
 
@@ -69,6 +65,10 @@ public class AbiUtils {
                     mLibs.add("armeabi");
                 } else if (name.startsWith("lib/armeabi-v7a")) {
                     mLibs.add("armeabi-v7a");
+                } else if (name.startsWith("lib/x86_64")) {
+                    mLibs.add("x86_64");
+                } else if (name.startsWith("lib/x86")) {
+                    mLibs.add("x86");
                 }
             }
         } catch (Exception e) {
@@ -79,11 +79,11 @@ public class AbiUtils {
     }
 
     public boolean is64Bit() {
-        return mLibs.contains("arm64-v8a");
+        return mLibs.contains("arm64-v8a") || mLibs.contains("x86_64");
     }
 
     public boolean is32Bit() {
-        return mLibs.contains("armeabi") || mLibs.contains("armeabi-v7a");
+        return mLibs.contains("armeabi") || mLibs.contains("armeabi-v7a") || mLibs.contains("x86");
     }
 
     public boolean isEmptyAib() {

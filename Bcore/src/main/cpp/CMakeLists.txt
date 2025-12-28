@@ -5,10 +5,22 @@ cmake_minimum_required(VERSION 3.10.2)
 
 project("blackbox")
 
-# Determine if building for 32-bit or 64-bit architecture
-if(ANDROID_ABI STREQUAL "armeabi-v7a" OR ANDROID_ABI STREQUAL "x86")
-    # Use prebuilt Dobby binaries for 32-bit architectures
-    message(STATUS "Using prebuilt Dobby for 32-bit architecture: ${ANDROID_ABI}")
+# Determine if building for 32-bit or 64-bit architecture, and whether Dobby is available
+if(ANDROID_ABI STREQUAL "x86")
+    # x86 (i386): No Dobby support - QEMU emulation only
+    message(STATUS "Building for x86 without Dobby (QEMU emulation only): ${ANDROID_ABI}")
+    
+    # Create a dummy dobby INTERFACE target to satisfy CMake target dependencies
+    # This is needed because the blackbox target links against dobby in target_link_libraries
+    # Without this, CMake would fail with "Target 'dobby' not found" error
+    add_library(dobby INTERFACE)
+    
+    # Set a flag to indicate Dobby is not available
+    set(DOBBY_AVAILABLE OFF)
+    set(DOBBY_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Dobby32/include)
+elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+    # Use prebuilt Dobby binaries for 32-bit ARM
+    message(STATUS "Using prebuilt Dobby for 32-bit ARM architecture: ${ANDROID_ABI}")
     
     # Import prebuilt Dobby library
     add_library(dobby STATIC IMPORTED)
@@ -18,6 +30,7 @@ if(ANDROID_ABI STREQUAL "armeabi-v7a" OR ANDROID_ABI STREQUAL "x86")
     
     # Set Dobby include directory for 32-bit
     set(DOBBY_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Dobby32/include)
+    set(DOBBY_AVAILABLE ON)
 else()
     # Build Dobby from source for 64-bit architectures (arm64-v8a, x86_64)
     message(STATUS "Building Dobby from source for 64-bit architecture: ${ANDROID_ABI}")
@@ -33,6 +46,14 @@ else()
     
     # Set Dobby include directory for 64-bit
     set(DOBBY_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Dobby64/include)
+    set(DOBBY_AVAILABLE ON)
+endif()
+
+# Add compile definition to indicate Dobby availability
+if(DOBBY_AVAILABLE)
+    add_compile_definitions(DOBBY_AVAILABLE=1)
+else()
+    add_compile_definitions(DOBBY_AVAILABLE=0)
 endif()
 
 # XDL library

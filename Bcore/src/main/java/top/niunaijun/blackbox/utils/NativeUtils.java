@@ -1,5 +1,6 @@
 package top.niunaijun.blackbox.utils;
 
+import android.content.Context;
 import android.os.Build;
 import android.util.Log;
 
@@ -29,12 +30,26 @@ import top.niunaijun.blackbox.core.QemuManager;
 public class NativeUtils {
     public static final String TAG = "VirtualM";
 
-    public static void copyNativeLib(File apk, File nativeLibDir) throws Exception {
+    public static void copyNativeLib(File apk, File nativeLibDir, Context context, String packageName) throws Exception {
         long startTime = System.currentTimeMillis();
         if (!nativeLibDir.exists()) {
             nativeLibDir.mkdirs();
         }
+        
+        // Check if user has a preferred ABI for this package
+        String preferredAbi = AbiPreferenceHelper.getPreferredAbi(context, packageName);
+        
         try (ZipFile zipfile = new ZipFile(apk.getAbsolutePath())) {
+            // If user has selected a preferred ABI, try that first
+            if (preferredAbi != null && !preferredAbi.isEmpty()) {
+                Log.i(TAG, "Using preferred ABI for " + packageName + ": " + preferredAbi);
+                if (findAndCopyNativeLib(zipfile, preferredAbi, nativeLibDir)) {
+                    Log.i(TAG, "Successfully copied " + preferredAbi + " libraries for " + packageName);
+                    return;
+                }
+                Log.w(TAG, "Preferred ABI " + preferredAbi + " not found in APK, falling back to auto-detection");
+            }
+            
             // Try native architecture first
             if (findAndCopyNativeLib(zipfile, Build.CPU_ABI, nativeLibDir)) {
                 return;
@@ -67,6 +82,11 @@ public class NativeUtils {
         } finally {
             Log.d(TAG, "Done! +" + (System.currentTimeMillis() - startTime) + "ms");
         }
+    }
+    
+    // Keep old method for backward compatibility
+    public static void copyNativeLib(File apk, File nativeLibDir) throws Exception {
+        copyNativeLib(apk, nativeLibDir, null, null);
     }
 
 

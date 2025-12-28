@@ -26,6 +26,7 @@ import top.niunaijun.blackboxa.util.ShortcutUtil
 import top.niunaijun.blackboxa.util.inflate
 import top.niunaijun.blackboxa.util.MemoryManager
 import top.niunaijun.blackboxa.util.toast
+import top.niunaijun.blackboxa.util.AbiPreferenceManager
 import top.niunaijun.blackboxa.view.base.LoadingActivity
 import top.niunaijun.blackboxa.view.main.MainActivity
 import java.util.*
@@ -537,19 +538,125 @@ class AppsFragment : Fragment() {
                 // Pure Java app with no native libraries
                 MaterialDialog(requireContext()).show {
                     title(R.string.app_select_abi)
-                    message(text = getString(R.string.app_abi_info, "none (Pure Java)"))
+                    message(text = getString(R.string.app_abi_pure_java))
                     positiveButton(R.string.done)
                 }
                 return
             }
             
-            // Show ABI information
-            val abiText = info.abiList.sorted().joinToString("\n• ", "• ")
-            MaterialDialog(requireContext()).show {
-                title(R.string.app_select_abi)
-                message(text = getString(R.string.app_abi_info, "\n$abiText"))
-                positiveButton(R.string.done)
+            // Get current saved preference
+            val savedAbi = AbiPreferenceManager.getPreferredAbi(info.packageName)
+            
+            // Get device's current native ABI
+            val deviceAbi = if (BlackBoxCore.is64Bit()) {
+                if (android.os.Build.SUPPORTED_ABIS.contains("arm64-v8a")) "arm64-v8a"
+                else if (android.os.Build.SUPPORTED_ABIS.contains("x86_64")) "x86_64"
+                else android.os.Build.SUPPORTED_ABIS[0]
+            } else {
+                android.os.Build.SUPPORTED_ABIS[0]
             }
+            
+            // Determine which ABI would be used for this app (native or QEMU)
+            val preferredAbi = savedAbi ?: info.abiList.find { it == deviceAbi } 
+                ?: info.abiList.find { abi ->
+                    // Check for compatible ABIs that can run with QEMU
+                    when (deviceAbi) {
+                        "arm64-v8a" -> abi in listOf("armeabi-v7a", "armeabi", "x86_64", "x86")
+                        "x86_64" -> abi in listOf("x86", "arm64-v8a", "armeabi-v7a", "armeabi")
+                        "armeabi-v7a" -> abi in listOf("armeabi", "x86")
+                        "x86" -> abi in listOf("armeabi-v7a", "armeabi")
+                        else -> false
+                    }
+                }
+                ?: info.abiList.firstOrNull()
+            
+            // Build ABI display list with human-readable names and QEMU indicator
+            val abiArray = info.abiList.sorted().toTypedArray()
+            val abiDisplayNames = abiArray.map { abi ->
+                val readable = when(abi) {
+                    "arm64-v8a" -> "ARM64 (64-bit)"
+                    "armeabi-v7a" -> "ARM (32-bit)"
+                    "armeabi" -> "ARM (legacy)"
+                    "x86_64" -> "x86-64 (64-bit)"
+                    "x86" -> "x86 (32-bit)"
+                    else -> abi
+                }
+                
+                // Determine if this ABI is native or needs QEMU
+                val mode = if (abi == deviceAbi) {
+                    "Native"
+                } else {
+                    val canRunWithQemu = when (deviceAbi) {
+                        "arm64-v8a" -> abi in listOf("armeabi-v7a", "armeabi", "x86_64", "x86")
+                        "x86_64" -> abi in listOf("x86", "arm64-v8a", "armeabi-v7a", "armeabi")
+                        "armeabi-v7a" -> abi in listOf("armeabi", "x86")
+                        "x86" -> abi in listOf("armeabi-v7a", "armeabi")
+                        else -> false
+                    }
+                    if (canRunWithQemu) "QEMU" else "Unsupported"
+                }
+                
+                // Mark the preferred ABI with checkmark
+                val prefix = if (abi == preferredAbi) "✓ " else "  "
+                "$prefix$readable ($mode)"
+            }.toTypedArray()
+            
+            // Create a selection dialog using AlertDialog
+            android.app.AlertDialog.Builder(requireContext())
+                .setTitle(R.string.app_select_abi)
+                .setItems(abiDisplayNames) { _, which ->
+                    val selectedAbi = abiArray[which]
+                    val displayName = when(selectedAbi) {
+                        "arm64-v8a" -> "ARM64 (64-bit)"
+                        "armeabi-v7a" -> "ARM (32-bit)"
+                        "armeabi" -> "ARM (legacy)"
+                        "x86_64" -> "x86-64 (64-bit)"
+                        "x86" -> "x86 (32-bit)"
+                        else -> selectedAbi
+                    }
+                    
+                    // Save the preference
+                    AbiPreferenceManager.setPreferredAbi(info.packageName, selectedAbi)
+                    
+                    val isNative = selectedAbi == deviceAbi
+                    val runMode = if (isNative) "natively" else "via QEMU emulation"
+                    
+                    // Show loading and re-extract libraries
+                    showLoading()
+                    Log.d(TAG, "Saved ABI preference for ${info.packageName}: $selectedAbi ($runMode)")
+                    Log.d(TAG, "Re-extracting native libraries for ${info.packageName}")
+                    
+                    // Trigger re-extraction
+                    viewModel.reExtractNativeLibs(info.packageName, userID)
+                }
+                .setMessage(getString(R.string.app_abi_device_info, 
+                    when(deviceAbi) {
+                        "arm64-v8a" -> "ARM64 (64-bit)"
+                        "armeabi-v7a" -> "ARM (32-bit)"
+                        "armeabi" -> "ARM (legacy)"
+                        "x86_64" -> "x86-64 (64-bit)"
+                        "x86" -> "x86 (32-bit)"
+                        else -> deviceAbi
+                    },
+                    when(preferredAbi) {
+                        "arm64-v8a" -> "ARM64 (64-bit)"
+                        "armeabi-v7a" -> "ARM (32-bit)"
+                        "armeabi" -> "ARM (legacy)"
+                        "x86_64" -> "x86-64 (64-bit)"
+                        "x86" -> "x86 (32-bit)"
+                        else -> preferredAbi ?: "Unknown"
+                    }
+                ))
+                .setPositiveButton(R.string.done, null)
+                .setNegativeButton("Reset") { _, _ ->
+                    // Clear the preference and re-extract with auto-detection
+                    AbiPreferenceManager.clearPreferredAbi(info.packageName)
+                    Log.d(TAG, "Cleared ABI preference for ${info.packageName}")
+                    
+                    showLoading()
+                    viewModel.reExtractNativeLibs(info.packageName, userID)
+                }
+                .show()
         } catch (e: Exception) {
             Log.e(TAG, "Error showing ABI selection dialog: ${e.message}")
         }
