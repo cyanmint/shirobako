@@ -438,6 +438,44 @@ class AppsRepository {
             resultLiveData.postValue("Clear failed: ${e.message}")
         }
     }
+    
+    fun reExtractNativeLibs(packageName: String, userID: Int, resultLiveData: MutableLiveData<String>) {
+        try {
+            Log.d(TAG, "Re-extracting native libraries for $packageName")
+            
+            // Get the app's source directory
+            val appInfo = BlackBoxCore.get().getInstalledApplications(0, userID)
+                ?.find { it.packageName == packageName }
+            
+            if (appInfo == null) {
+                resultLiveData.postValue("App not found: $packageName")
+                return
+            }
+            
+            val sourceFile = java.io.File(appInfo.sourceDir)
+            val libDir = top.niunaijun.blackbox.core.env.BEnvironment.getAppLibDir(packageName)
+            
+            // Clear existing native libraries
+            if (libDir.exists()) {
+                libDir.deleteRecursively()
+            }
+            libDir.mkdirs()
+            
+            // Re-extract with the new ABI preference
+            top.niunaijun.blackbox.utils.NativeUtils.copyNativeLib(
+                sourceFile,
+                libDir,
+                BlackBoxCore.getContext(),
+                packageName
+            )
+            
+            Log.d(TAG, "Native libraries re-extracted successfully for $packageName")
+            resultLiveData.postValue("Libraries updated. Restart the app for changes to take effect.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error re-extracting native libraries: ${e.message}", e)
+            resultLiveData.postValue("Failed to update libraries: ${e.message}")
+        }
+    }
 
     /**
      * 倒序递归扫描用户，

@@ -85,4 +85,10 @@ class AppsViewModel(private val repo: AppsRepository) : BaseViewModel() {
             repo.updateApkOrder(userID,dataList)
         }
     }
+    
+    fun reExtractNativeLibs(packageName: String, userID: Int) {
+        launchOnUI {
+            repo.reExtractNativeLibs(packageName, userID, resultLiveData)
+        }
+    }
 }

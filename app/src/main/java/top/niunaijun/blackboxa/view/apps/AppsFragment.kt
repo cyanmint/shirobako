@@ -26,6 +26,7 @@ import top.niunaijun.blackboxa.util.ShortcutUtil
 import top.niunaijun.blackboxa.util.inflate
 import top.niunaijun.blackboxa.util.MemoryManager
 import top.niunaijun.blackboxa.util.toast
+import top.niunaijun.blackboxa.util.AbiPreferenceManager
 import top.niunaijun.blackboxa.view.base.LoadingActivity
 import top.niunaijun.blackboxa.view.main.MainActivity
 import java.util.*
@@ -543,6 +544,9 @@ class AppsFragment : Fragment() {
                 return
             }
             
+            // Get current saved preference
+            val savedAbi = AbiPreferenceManager.getPreferredAbi(info.packageName)
+            
             // Get device's current native ABI
             val deviceAbi = if (BlackBoxCore.is64Bit()) {
                 if (android.os.Build.SUPPORTED_ABIS.contains("arm64-v8a")) "arm64-v8a"
@@ -553,7 +557,7 @@ class AppsFragment : Fragment() {
             }
             
             // Determine which ABI would be used for this app (native or QEMU)
-            val preferredAbi = info.abiList.find { it == deviceAbi } 
+            val preferredAbi = savedAbi ?: info.abiList.find { it == deviceAbi } 
                 ?: info.abiList.find { abi ->
                     // Check for compatible ABIs that can run with QEMU
                     when (deviceAbi) {
@@ -611,10 +615,19 @@ class AppsFragment : Fragment() {
                         else -> selectedAbi
                     }
                     
+                    // Save the preference
+                    AbiPreferenceManager.setPreferredAbi(info.packageName, selectedAbi)
+                    
                     val isNative = selectedAbi == deviceAbi
                     val runMode = if (isNative) "natively" else "via QEMU emulation"
-                    toast(getString(R.string.app_abi_selected_mode, displayName, runMode))
-                    Log.d(TAG, "Selected ABI for ${info.packageName}: $selectedAbi ($runMode)")
+                    
+                    // Show loading and re-extract libraries
+                    showLoading()
+                    Log.d(TAG, "Saved ABI preference for ${info.packageName}: $selectedAbi ($runMode)")
+                    Log.d(TAG, "Re-extracting native libraries for ${info.packageName}")
+                    
+                    // Trigger re-extraction
+                    viewModel.reExtractNativeLibs(info.packageName, userID)
                 }
                 .setMessage(getString(R.string.app_abi_device_info, 
                     when(deviceAbi) {
@@ -635,6 +648,14 @@ class AppsFragment : Fragment() {
                     }
                 ))
                 .setPositiveButton(R.string.done, null)
+                .setNegativeButton("Reset") { _, _ ->
+                    // Clear the preference and re-extract with auto-detection
+                    AbiPreferenceManager.clearPreferredAbi(info.packageName)
+                    Log.d(TAG, "Cleared ABI preference for ${info.packageName}")
+                    
+                    showLoading()
+                    viewModel.reExtractNativeLibs(info.packageName, userID)
+                }
                 .show()
         } catch (e: Exception) {
             Log.e(TAG, "Error showing ABI selection dialog: ${e.message}")

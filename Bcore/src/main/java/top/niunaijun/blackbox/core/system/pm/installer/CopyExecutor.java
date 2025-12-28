@@ -4,6 +4,7 @@ package top.niunaijun.blackbox.core.system.pm.installer;
 import java.io.File;
 import java.io.IOException;
 
+import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.env.BEnvironment;
 import top.niunaijun.blackbox.core.system.pm.BPackageSettings;
 import top.niunaijun.blackbox.entity.pm.InstallOption;
@@ -25,7 +26,13 @@ public class CopyExecutor implements Executor {
     public int exec(BPackageSettings ps, InstallOption option, int userId) {
         try {
             if (!option.isFlag(InstallOption.FLAG_SYSTEM)) {
-                NativeUtils.copyNativeLib(new File(ps.pkg.baseCodePath), BEnvironment.getAppLibDir(ps.pkg.packageName));
+                // Pass context and package name for ABI preference support
+                NativeUtils.copyNativeLib(
+                    new File(ps.pkg.baseCodePath), 
+                    BEnvironment.getAppLibDir(ps.pkg.packageName),
+                    BlackBoxCore.getContext(),
+                    ps.pkg.packageName
+                );
             }
         } catch (Exception e) {
             e.printStackTrace();
