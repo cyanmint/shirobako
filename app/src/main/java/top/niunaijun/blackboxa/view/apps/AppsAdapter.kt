@@ -75,6 +75,15 @@ class AppsAdapter : RVHolderFactory() {
                 // Safely set the name
                 binding.name.text = item.name ?: "Unknown App"
                 
+                // Display ABI information
+                if (item.abiList.isEmpty()) {
+                    binding.abiInfo.text = "none"
+                    binding.abiInfo.visibility = View.VISIBLE
+                } else {
+                    binding.abiInfo.text = item.abiList.sorted().joinToString(", ")
+                    binding.abiInfo.visibility = View.VISIBLE
+                }
+                
                 // Handle XP module label
                 if (item.isXpModule) {
                     binding.cornerLabel.visibility = View.VISIBLE

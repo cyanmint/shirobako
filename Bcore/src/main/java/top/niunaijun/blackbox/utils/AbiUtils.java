@@ -89,4 +89,15 @@ public class AbiUtils {
     public boolean isEmptyAib() {
         return mLibs.isEmpty();
     }
+
+    public Set<String> getAbiList() {
+        return new HashSet<>(mLibs);
+    }
+
+    public String getAbiString() {
+        if (mLibs.isEmpty()) {
+            return "none";
+        }
+        return String.join(", ", mLibs);
+    }
 }
