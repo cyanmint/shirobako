@@ -20,17 +20,19 @@ import java.util.Set;
  * Manages cross-architecture execution using QEMU user mode emulation
  * 
  * Architecture support matrix:
- * - Host arm64+arm32: use QEMU for x86_64
- * - Host arm64 only: use QEMU for arm32 & x86_64
- * - Host x86_64 only: use QEMU for arm64 & arm32
+ * - Host aarch64 (arm64): Native arm64 & arm32, QEMU for x86_64 & x86
+ * - Host x86_64: Native x86_64 & x86, QEMU for arm64 & arm32
+ * - Host arm32 only: Native arm32, QEMU for arm64 & x86_64 (limited)
+ * - Host x86 only: Native x86, QEMU for other architectures (limited)
  */
 public class QemuManager {
     private static final String TAG = "QemuManager";
     
-    // Supported architectures (x86/i386 removed per redroid limitation)
+    // Supported architectures (including x86/i386)
     private static final String ABI_ARM64 = "arm64-v8a";
     private static final String ABI_ARM32 = "armeabi-v7a";
     private static final String ABI_X86_64 = "x86_64";
+    private static final String ABI_X86 = "x86";
     
     private static QemuManager instance;
     private Context context;
@@ -78,25 +80,51 @@ public class QemuManager {
             // API 21+ provides SUPPORTED_ABIS
             String[] supportedAbis = Build.SUPPORTED_ABIS;
             for (String abi : supportedAbis) {
-                if (abi.equals(ABI_ARM64) || abi.equals(ABI_ARM32) || abi.equals(ABI_X86_64)) {
+                // Only add truly native ABIs
+                // aarch64 hosts support: arm64-v8a, armeabi-v7a (via compatibility)
+                // x86_64 hosts support: x86_64, x86 (via compatibility)
+                // Do NOT mix architectures - aarch64 cannot natively run x86, and vice versa
+                if (abi.equals(ABI_ARM64) || abi.equals(ABI_ARM32) || 
+                    abi.equals(ABI_X86_64) || abi.equals(ABI_X86)) {
                     nativeSupportedAbis.add(abi);
                 }
             }
         } else {
             // Fallback for older APIs
             String primaryAbi = Build.CPU_ABI;
-            if (primaryAbi.equals(ABI_ARM64) || primaryAbi.equals(ABI_ARM32) || primaryAbi.equals(ABI_X86_64)) {
+            if (primaryAbi.equals(ABI_ARM64) || primaryAbi.equals(ABI_ARM32) || 
+                primaryAbi.equals(ABI_X86_64) || primaryAbi.equals(ABI_X86)) {
                 nativeSupportedAbis.add(primaryAbi);
             }
             
             String secondaryAbi = Build.CPU_ABI2;
             if (secondaryAbi != null && !secondaryAbi.isEmpty()) {
-                if (secondaryAbi.equals(ABI_ARM64) || secondaryAbi.equals(ABI_ARM32) || secondaryAbi.equals(ABI_X86_64)) {
+                if (secondaryAbi.equals(ABI_ARM64) || secondaryAbi.equals(ABI_ARM32) || 
+                    secondaryAbi.equals(ABI_X86_64) || secondaryAbi.equals(ABI_X86)) {
                     nativeSupportedAbis.add(secondaryAbi);
                 }
             }
         }
         
+        // Filter out cross-architecture ABIs that appear in SUPPORTED_ABIS but aren't truly native
+        // On aarch64: only arm64-v8a and armeabi-v7a are native (NOT x86_64)
+        // On x86_64: only x86_64 and x86 are native (NOT arm64-v8a)
+        Set<String> trueNativeAbis = new HashSet<>();
+        boolean hasArmAbi = nativeSupportedAbis.contains(ABI_ARM64) || nativeSupportedAbis.contains(ABI_ARM32);
+        boolean hasX86Abi = nativeSupportedAbis.contains(ABI_X86_64) || nativeSupportedAbis.contains(ABI_X86);
+        
+        for (String abi : nativeSupportedAbis) {
+            // If we have ARM ABIs, only keep ARM-family ABIs
+            if (hasArmAbi && (abi.equals(ABI_ARM64) || abi.equals(ABI_ARM32))) {
+                trueNativeAbis.add(abi);
+            }
+            // If we have x86 ABIs, only keep x86-family ABIs
+            if (hasX86Abi && (abi.equals(ABI_X86_64) || abi.equals(ABI_X86))) {
+                trueNativeAbis.add(abi);
+            }
+        }
+        
+        nativeSupportedAbis = trueNativeAbis;
         Log.d(TAG, "Detected native ABIs: " + nativeSupportedAbis);
     }
     
@@ -221,7 +249,7 @@ public class QemuManager {
      */
     public Set<String> getEmulatedAbis() {
         Set<String> emulated = new HashSet<>();
-        Set<String> allAbis = new HashSet<>(Arrays.asList(ABI_ARM64, ABI_ARM32, ABI_X86_64));
+        Set<String> allAbis = new HashSet<>(Arrays.asList(ABI_ARM64, ABI_ARM32, ABI_X86_64, ABI_X86));
         
         for (String abi : allAbis) {
             if (!nativeSupportedAbis.contains(abi)) {
@@ -242,6 +270,8 @@ public class QemuManager {
             return ABI_X86_64;
         } else if (nativeSupportedAbis.contains(ABI_ARM32)) {
             return ABI_ARM32;
+        } else if (nativeSupportedAbis.contains(ABI_X86)) {
+            return ABI_X86;
         }
         return Build.CPU_ABI;
     }
@@ -257,6 +287,8 @@ public class QemuManager {
                 return "qemu-arm-static";
             case ABI_X86_64:
                 return "qemu-x86_64-static";
+            case ABI_X86:
+                return "qemu-i386-static";
             default:
                 return "qemu-" + targetAbi + "-static";
         }
@@ -289,7 +321,7 @@ public class QemuManager {
                 return linker64.getAbsolutePath();
             }
         }
-        // Fallback to linker
+        // Use linker for 32-bit architectures
         File linker = new File(runtimeDir, "linker");
         if (linker.exists()) {
             return linker.getAbsolutePath();

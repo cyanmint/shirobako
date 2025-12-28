@@ -38,6 +38,8 @@
     <string name="shortcut_name">Shortcut Name</string>
     <string name="app_select_abi">Select Architecture</string>
     <string name="app_abi_info">Architecture: %s</string>
+    <string name="app_abi_pure_java">This app has no native libraries (Pure Java)</string>
+    <string name="app_abi_selected">Selected: %s</string>
     <string name="try_add_shortcut">Try Added To Desktop</string>
     <string name="add_shortcut_fail_msg">If the addition fails, please go to system settings and open the permission of "create desktop shortcut" for shirobako</string>
     <string name="install_success">Installed Successfully</string>

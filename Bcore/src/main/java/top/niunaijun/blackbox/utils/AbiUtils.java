@@ -41,7 +41,7 @@ public class AbiUtils {
         if (BlackBoxCore.is64Bit()) {
             // On 64-bit host (x86_64 or aarch64): Accept all architectures
             // - 64-bit apps run natively
-            // - 32-bit apps run via QEMU emulation with Dobby32 support
+            // - 32-bit apps run via QEMU emulation with Dobby32 support (ARM) or without Dobby (x86)
             return true;
         } else {
             // On 32-bit host: Accept all 32-bit, reject 64-bit-only apps
@@ -69,6 +69,10 @@ public class AbiUtils {
                     mLibs.add("armeabi");
                 } else if (name.startsWith("lib/armeabi-v7a")) {
                     mLibs.add("armeabi-v7a");
+                } else if (name.startsWith("lib/x86_64")) {
+                    mLibs.add("x86_64");
+                } else if (name.startsWith("lib/x86")) {
+                    mLibs.add("x86");
                 }
             }
         } catch (Exception e) {
@@ -79,11 +83,11 @@ public class AbiUtils {
     }
 
     public boolean is64Bit() {
-        return mLibs.contains("arm64-v8a");
+        return mLibs.contains("arm64-v8a") || mLibs.contains("x86_64");
     }
 
     public boolean is32Bit() {
-        return mLibs.contains("armeabi") || mLibs.contains("armeabi-v7a");
+        return mLibs.contains("armeabi") || mLibs.contains("armeabi-v7a") || mLibs.contains("x86");
     }
 
     public boolean isEmptyAib() {

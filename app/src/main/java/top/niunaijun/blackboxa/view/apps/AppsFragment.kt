@@ -537,18 +537,40 @@ class AppsFragment : Fragment() {
                 // Pure Java app with no native libraries
                 MaterialDialog(requireContext()).show {
                     title(R.string.app_select_abi)
-                    message(text = getString(R.string.app_abi_info, "none (Pure Java)"))
+                    message(text = getString(R.string.app_abi_pure_java))
                     positiveButton(R.string.done)
                 }
                 return
             }
             
-            // Show ABI information
-            val abiText = info.abiList.sorted().joinToString("\n• ", "• ")
+            // Get sorted ABI list
+            val abiArray = info.abiList.sorted().toTypedArray()
+            val abiDisplayNames = abiArray.map { abi ->
+                when(abi) {
+                    "arm64-v8a" -> "ARM64 (64-bit)"
+                    "armeabi-v7a" -> "ARM (32-bit)"
+                    "armeabi" -> "ARM (legacy)"
+                    "x86_64" -> "x86-64 (64-bit)"
+                    "x86" -> "x86 (32-bit)"
+                    else -> abi
+                }
+            }.toTypedArray()
+            
+            // Show selectable ABI list
             MaterialDialog(requireContext()).show {
                 title(R.string.app_select_abi)
-                message(text = getString(R.string.app_abi_info, "\n$abiText"))
+                listItemsSingleChoice(
+                    items = abiDisplayNames.toList(),
+                    initialSelection = 0
+                ) { _, index, text ->
+                    val selectedAbi = abiArray[index]
+                    toast(getString(R.string.app_abi_selected, text))
+                    Log.d(TAG, "Selected ABI for ${info.packageName}: $selectedAbi")
+                    // Note: This is currently informational only
+                    // The actual ABI selection happens automatically based on device architecture
+                }
                 positiveButton(R.string.done)
+                negativeButton(R.string.cancel)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error showing ABI selection dialog: ${e.message}")

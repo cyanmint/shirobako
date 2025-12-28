@@ -23,14 +23,15 @@ android {
         ndk {
             // Build for all supported architectures
             // 64-bit: Build Dobby from patched source (Dobby64)
-            // 32-bit: Use prebuilt Dobby binaries (Dobby32) - QEMU emulation support
-            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+            // 32-bit ARM: Use prebuilt Dobby binaries (Dobby32) - QEMU emulation support
+            // x86: No Dobby (QEMU emulation only, no native hooking)
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'
         }
     }
     
     // Handle large QEMU assets - don't compress them
     androidResources {
-        noCompress 'qemu-arm-static', 'qemu-aarch64-static', 'qemu-x86_64-static', 'linker', 'linker64'
+        noCompress 'qemu-arm-static', 'qemu-aarch64-static', 'qemu-x86_64-static', 'qemu-i386-static', 'linker', 'linker64'
         noCompress += ['libc.so', 'libm.so', 'libdl.so']
     }
 

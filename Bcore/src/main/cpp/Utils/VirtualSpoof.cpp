@@ -3,7 +3,9 @@
 #include "./xdl.h"
 #include <android/log.h>
 #include <dlfcn.h>
+#if DOBBY_AVAILABLE
 #include "dobby.h"
+#endif
 
 /**
  * created by alex5402 on 4/9/21.
@@ -63,6 +65,7 @@ int my_system_property_get(const char *name, char *value) {
 }
 
 void install_property_get_hook() {
+#if DOBBY_AVAILABLE
     void* handle = xdl_open("libc.so", XDL_DEFAULT);
     void* target = xdl_dsym(handle, "__system_property_get", nullptr);
     if (target) {
@@ -75,7 +78,9 @@ void install_property_get_hook() {
     } else{
         xdl_close(handle);
     }
-
+#else
+    LOGD("Dobby not available on this architecture - property spoofing disabled");
+#endif
 }
 
 // Initialization function to ensure our hook is loaded

@@ -6,7 +6,9 @@
 #include <string.h>
 #include <errno.h>
 #include <dirent.h>
+#if DOBBY_AVAILABLE
 #include "dobby.h"
+#endif
 #include "xdl.h"
 
 #define LOG_TAG "AntiDetection"
@@ -241,6 +243,7 @@ static DIR* my_opendir(const char *name) {
 
 
 static void install_file_hooks() {
+#if DOBBY_AVAILABLE
     void* handle = xdl_open("libc.so", XDL_DEFAULT);
     if (!handle) {
         LOGD("xdl_open failed for libc.so");
@@ -281,6 +284,9 @@ static void install_file_hooks() {
 
     xdl_close(handle);
     LOGD("File system hooks installed");
+#else
+    LOGD("Dobby not available on this architecture - file hooks disabled");
+#endif
 }
 
 // Main installer function - call this once at startup
