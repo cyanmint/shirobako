@@ -22,8 +22,10 @@ import java.util.Set;
  * Architecture support matrix:
  * - Host aarch64 (arm64): Native arm64 & arm32, QEMU for x86_64 & x86
  * - Host x86_64: Native x86_64 & x86, QEMU for arm64 & arm32
- * - Host arm32 only: Native arm32, QEMU for arm64 & x86_64 (limited)
- * - Host x86 only: Native x86, QEMU for other architectures (limited)
+ * - Host arm32 only: Native arm32, QEMU for x86 only (32-bit guests only)
+ * - Host x86 only: Native x86, QEMU for arm32 only (32-bit guests only)
+ * 
+ * Note: 32-bit hosts cannot run 64-bit guests (no QEMU support)
  */
 public class QemuManager {
     private static final String TAG = "QemuManager";
@@ -81,9 +83,11 @@ public class QemuManager {
             String[] supportedAbis = Build.SUPPORTED_ABIS;
             for (String abi : supportedAbis) {
                 // Only add truly native ABIs
-                // aarch64 hosts support: arm64-v8a, armeabi-v7a (via compatibility)
-                // x86_64 hosts support: x86_64, x86 (via compatibility)
-                // Do NOT mix architectures - aarch64 cannot natively run x86, and vice versa
+                // Note: 64-bit hosts cannot switch to 32-bit mode at runtime for app ABIs
+                // - aarch64 hosts: Only arm64-v8a is native (armeabi-v7a requires QEMU)
+                // - x86_64 hosts: Only x86_64 is native (x86 requires QEMU)
+                // - arm32 hosts: Only armeabi-v7a is native
+                // - x86 hosts: Only x86 is native
                 if (abi.equals(ABI_ARM64) || abi.equals(ABI_ARM32) || 
                     abi.equals(ABI_X86_64) || abi.equals(ABI_X86)) {
                     nativeSupportedAbis.add(abi);
@@ -106,26 +110,28 @@ public class QemuManager {
             }
         }
         
-        // Filter out cross-architecture ABIs that appear in SUPPORTED_ABIS but aren't truly native
-        // On aarch64: only arm64-v8a and armeabi-v7a are native (NOT x86_64)
-        // On x86_64: only x86_64 and x86 are native (NOT arm64-v8a)
+        // Filter to only keep the primary 64-bit or 32-bit ABI
+        // 64-bit hosts (aarch64, x86_64): Keep only the 64-bit ABI
+        // 32-bit hosts (arm32, x86): Keep only the 32-bit ABI
         Set<String> trueNativeAbis = new HashSet<>();
-        boolean hasArmAbi = nativeSupportedAbis.contains(ABI_ARM64) || nativeSupportedAbis.contains(ABI_ARM32);
-        boolean hasX86Abi = nativeSupportedAbis.contains(ABI_X86_64) || nativeSupportedAbis.contains(ABI_X86);
         
-        for (String abi : nativeSupportedAbis) {
-            // If we have ARM ABIs, only keep ARM-family ABIs
-            if (hasArmAbi && (abi.equals(ABI_ARM64) || abi.equals(ABI_ARM32))) {
-                trueNativeAbis.add(abi);
-            }
-            // If we have x86 ABIs, only keep x86-family ABIs
-            if (hasX86Abi && (abi.equals(ABI_X86_64) || abi.equals(ABI_X86))) {
-                trueNativeAbis.add(abi);
-            }
+        // Check for 64-bit ABIs first
+        if (nativeSupportedAbis.contains(ABI_ARM64)) {
+            // aarch64 host: Only arm64-v8a is truly native
+            trueNativeAbis.add(ABI_ARM64);
+        } else if (nativeSupportedAbis.contains(ABI_X86_64)) {
+            // x86_64 host: Only x86_64 is truly native
+            trueNativeAbis.add(ABI_X86_64);
+        } else if (nativeSupportedAbis.contains(ABI_ARM32)) {
+            // arm32 host: Only armeabi-v7a is native
+            trueNativeAbis.add(ABI_ARM32);
+        } else if (nativeSupportedAbis.contains(ABI_X86)) {
+            // x86 host: Only x86 is native
+            trueNativeAbis.add(ABI_X86);
         }
         
         nativeSupportedAbis = trueNativeAbis;
-        Log.d(TAG, "Detected native ABIs: " + nativeSupportedAbis);
+        Log.d(TAG, "Detected native ABIs (64-bit cannot switch to 32-bit at runtime): " + nativeSupportedAbis);
     }
     
     /**
@@ -249,11 +255,23 @@ public class QemuManager {
      */
     public Set<String> getEmulatedAbis() {
         Set<String> emulated = new HashSet<>();
-        Set<String> allAbis = new HashSet<>(Arrays.asList(ABI_ARM64, ABI_ARM32, ABI_X86_64, ABI_X86));
+        boolean hostIs64Bit = nativeSupportedAbis.contains(ABI_ARM64) || nativeSupportedAbis.contains(ABI_X86_64);
         
-        for (String abi : allAbis) {
-            if (!nativeSupportedAbis.contains(abi)) {
-                emulated.add(abi);
+        if (hostIs64Bit) {
+            // 64-bit hosts can emulate all architectures
+            Set<String> allAbis = new HashSet<>(Arrays.asList(ABI_ARM64, ABI_ARM32, ABI_X86_64, ABI_X86));
+            for (String abi : allAbis) {
+                if (!nativeSupportedAbis.contains(abi)) {
+                    emulated.add(abi);
+                }
+            }
+        } else {
+            // 32-bit hosts can only emulate 32-bit architectures
+            Set<String> all32BitAbis = new HashSet<>(Arrays.asList(ABI_ARM32, ABI_X86));
+            for (String abi : all32BitAbis) {
+                if (!nativeSupportedAbis.contains(abi)) {
+                    emulated.add(abi);
+                }
             }
         }
         
@@ -330,11 +348,46 @@ public class QemuManager {
     }
     
     /**
+     * Check if an ABI can be supported (either natively or via QEMU)
+     */
+    public boolean canSupport(String abi) {
+        if (!initialized) {
+            Log.w(TAG, "QemuManager not initialized");
+            return false;
+        }
+        
+        // Check if natively supported
+        if (nativeSupportedAbis.contains(abi)) {
+            return true;
+        }
+        
+        // Check if host is 64-bit
+        boolean hostIs64Bit = nativeSupportedAbis.contains(ABI_ARM64) || nativeSupportedAbis.contains(ABI_X86_64);
+        
+        if (!hostIs64Bit) {
+            // 32-bit hosts cannot run 64-bit guests
+            if (abi.equals(ABI_ARM64) || abi.equals(ABI_X86_64)) {
+                Log.d(TAG, "32-bit host cannot support 64-bit ABI: " + abi);
+                return false;
+            }
+        }
+        
+        // Check if QEMU is available for this ABI
+        return isQemuAvailable(abi);
+    }
+    
+    /**
      * Check if QEMU is available for target ABI
      */
     public boolean isQemuAvailable(String targetAbi) {
         if (nativeSupportedAbis.contains(targetAbi)) {
             return true; // Native support, no QEMU needed
+        }
+        
+        // Check if this is a 64-bit ABI on a 32-bit host
+        boolean hostIs64Bit = nativeSupportedAbis.contains(ABI_ARM64) || nativeSupportedAbis.contains(ABI_X86_64);
+        if (!hostIs64Bit && (targetAbi.equals(ABI_ARM64) || targetAbi.equals(ABI_X86_64))) {
+            return false; // 32-bit hosts cannot emulate 64-bit guests
         }
         
         File qemuBinary = getQemuBinary(targetAbi);
