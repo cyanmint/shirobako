@@ -47,13 +47,7 @@ public class AbiUtils {
             // On 32-bit host: Accept only 32-bit apps, reject 64-bit-only apps
             // - 32-bit hosts can run 32-bit apps (native or QEMU for cross-arch)
             // - 32-bit hosts CANNOT run 64-bit apps (no 64-bit QEMU on 32-bit host)
-            if (has32Bit) {
-                return true; // Accept if app has 32-bit libraries
-            }
-            if (has64Bit && !has32Bit) {
-                return false; // Reject if app only has 64-bit libraries
-            }
-            return false; // Reject if app only has 64-bit libraries
+            return has32Bit;
         }
     }
 

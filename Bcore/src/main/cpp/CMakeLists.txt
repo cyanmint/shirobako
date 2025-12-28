@@ -10,7 +10,9 @@ if(ANDROID_ABI STREQUAL "x86")
     # x86 (i386): No Dobby support - QEMU emulation only
     message(STATUS "Building for x86 without Dobby (QEMU emulation only): ${ANDROID_ABI}")
     
-    # Create a dummy dobby target to satisfy build dependencies
+    # Create a dummy dobby INTERFACE target to satisfy CMake target dependencies
+    # This is needed because the blackbox target links against dobby in target_link_libraries
+    # Without this, CMake would fail with "Target 'dobby' not found" error
     add_library(dobby INTERFACE)
     
     # Set a flag to indicate Dobby is not available

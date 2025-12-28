@@ -339,7 +339,7 @@ public class QemuManager {
                 return linker64.getAbsolutePath();
             }
         }
-        // Use linker for 32-bit architectures
+        // Fallback to linker for 32-bit or if linker64 not found
         File linker = new File(runtimeDir, "linker");
         if (linker.exists()) {
             return linker.getAbsolutePath();
