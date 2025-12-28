@@ -10,7 +10,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import top.niunaijun.blackbox.BlackBoxCore;
-import top.niunaijun.blackbox.core.QemuManager;
 
 /**
  * updated by alex5402 on 3/2/21.
@@ -39,28 +38,20 @@ public class AbiUtils {
         // Check if app has 32-bit libraries
         boolean has32Bit = abiUtils.is32Bit();
         
-        // Get QEMU manager to check for emulation support
-        QemuManager qemuManager = QemuManager.getInstance();
-        boolean qemuInitialized = qemuManager.isInitialized();
-        
         if (BlackBoxCore.is64Bit()) {
-            // On 64-bit device: accept 64-bit apps natively
-            if (has64Bit) {
-                return true;
-            }
-            // On 64-bit device: accept 32-bit apps if QEMU is available for armeabi-v7a
-            if (has32Bit && qemuInitialized && qemuManager.isQemuAvailable("armeabi-v7a")) {
-                return true;
-            }
-            // Fallback: if we have armeabi-v7a native libraries built, we can run 32-bit apps
-            // (This handles the case where QEMU isn't initialized yet during install)
-            if (has32Bit) {
-                return true; // We now build armeabi-v7a libraries with Dobby32
-            }
-            return false;
+            // On 64-bit host (x86_64 or aarch64): Accept all architectures
+            // - 64-bit apps run natively
+            // - 32-bit apps run via QEMU emulation with Dobby32 support
+            return true;
         } else {
-            // On 32-bit device: only accept 32-bit apps
-            return has32Bit;
+            // On 32-bit host: Accept all 32-bit, reject 64-bit-only apps
+            // - Accept apps that have 32-bit libraries (even if they also have 64-bit)
+            // - Reject apps that only have 64-bit libraries
+            // - No QEMU available for 32-bit host to emulate 64-bit guest
+            if (has32Bit) {
+                return true; // Accept if app has 32-bit libraries (regardless of 64-bit)
+            }
+            return false; // Reject if app only has 64-bit libraries
         }
     }
 
