@@ -543,34 +543,22 @@ class AppsFragment : Fragment() {
                 return
             }
             
-            // Get sorted ABI list
-            val abiArray = info.abiList.sorted().toTypedArray()
-            val abiDisplayNames = abiArray.map { abi ->
+            // Show ABI information with human-readable names
+            val abiDisplayText = info.abiList.sorted().joinToString("\n") { abi ->
                 when(abi) {
-                    "arm64-v8a" -> "ARM64 (64-bit)"
-                    "armeabi-v7a" -> "ARM (32-bit)"
-                    "armeabi" -> "ARM (legacy)"
-                    "x86_64" -> "x86-64 (64-bit)"
-                    "x86" -> "x86 (32-bit)"
-                    else -> abi
+                    "arm64-v8a" -> "• ARM64 (64-bit)"
+                    "armeabi-v7a" -> "• ARM (32-bit)"
+                    "armeabi" -> "• ARM (legacy)"
+                    "x86_64" -> "• x86-64 (64-bit)"
+                    "x86" -> "• x86 (32-bit)"
+                    else -> "• $abi"
                 }
-            }.toTypedArray()
+            }
             
-            // Show selectable ABI list
             MaterialDialog(requireContext()).show {
                 title(R.string.app_select_abi)
-                listItemsSingleChoice(
-                    items = abiDisplayNames.toList(),
-                    initialSelection = 0
-                ) { _, index, text ->
-                    val selectedAbi = abiArray[index]
-                    toast(getString(R.string.app_abi_selected, text))
-                    Log.d(TAG, "Selected ABI for ${info.packageName}: $selectedAbi")
-                    // Note: This is currently informational only
-                    // The actual ABI selection happens automatically based on device architecture
-                }
+                message(text = getString(R.string.app_abi_info, "\n$abiDisplayText"))
                 positiveButton(R.string.done)
-                negativeButton(R.string.cancel)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error showing ABI selection dialog: ${e.message}")
