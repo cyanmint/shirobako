@@ -33,10 +33,25 @@ public class AbiUtils {
             return true;
         }
 
+        // Check if app has 64-bit libraries
+        boolean has64Bit = abiUtils.is64Bit();
+        // Check if app has 32-bit libraries
+        boolean has32Bit = abiUtils.is32Bit();
+        
         if (BlackBoxCore.is64Bit()) {
-            return abiUtils.is64Bit();
+            // On 64-bit host (x86_64 or aarch64): Accept all architectures
+            // - 64-bit apps run natively
+            // - 32-bit apps run via QEMU emulation with Dobby32 support
+            return true;
         } else {
-            return abiUtils.is32Bit();
+            // On 32-bit host: Accept all 32-bit, reject 64-bit-only apps
+            // - Accept apps that have 32-bit libraries (even if they also have 64-bit)
+            // - Reject apps that only have 64-bit libraries
+            // - No QEMU available for 32-bit host to emulate 64-bit guest
+            if (has32Bit) {
+                return true; // Accept if app has 32-bit libraries (regardless of 64-bit)
+            }
+            return false; // Reject if app only has 64-bit libraries
         }
     }
 
@@ -73,5 +88,16 @@ public class AbiUtils {
 
     public boolean isEmptyAib() {
         return mLibs.isEmpty();
+    }
+
+    public Set<String> getAbiList() {
+        return new HashSet<>(mLibs);
+    }
+
+    public String getAbiString() {
+        if (mLibs.isEmpty()) {
+            return "none";
+        }
+        return String.join(", ", mLibs);
     }
 }

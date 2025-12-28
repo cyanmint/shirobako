@@ -347,6 +347,10 @@ class AppsFragment : Fragment() {
                         it.setOnMenuItemClickListener { item ->
                             try {
                                 when (item.itemId) {
+                                    R.id.app_select_abi -> {
+                                        showAbiSelectionDialog(data)
+                                    }
+                                    
                                     R.id.app_remove -> {
                                         if (data.isXpModule) {
                                             toast(R.string.uninstall_module_toast)
@@ -520,6 +524,34 @@ class AppsFragment : Fragment() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error showing clear dialog: ${e.message}")
+        }
+    }
+
+    /**
+     * 选择ABI架构
+     * @param info AppInfo
+     */
+    private fun showAbiSelectionDialog(info: AppInfo) {
+        try {
+            if (info.abiList.isEmpty()) {
+                // Pure Java app with no native libraries
+                MaterialDialog(requireContext()).show {
+                    title(R.string.app_select_abi)
+                    message(text = getString(R.string.app_abi_info, "none (Pure Java)"))
+                    positiveButton(R.string.done)
+                }
+                return
+            }
+            
+            // Show ABI information
+            val abiText = info.abiList.sorted().joinToString("\n• ", "• ")
+            MaterialDialog(requireContext()).show {
+                title(R.string.app_select_abi)
+                message(text = getString(R.string.app_abi_info, "\n$abiText"))
+                positiveButton(R.string.done)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing ABI selection dialog: ${e.message}")
         }
     }
 

@@ -101,13 +101,18 @@ class AppsRepository {
                         }
 
                         val isXpModule = BlackBoxCore.get().isXposedModule(file)
+                        
+                        // Get ABI information
+                        val abiUtils = AbiUtils(file)
+                        val abiList = abiUtils.getAbiList()
 
                         val info = AppInfo(
                             safeLoadAppLabel(installedApplication),
                             safeLoadAppIcon(installedApplication), // Remove the !! operator to allow null icons
                             installedApplication.packageName,
                             installedApplication.sourceDir,
-                            isXpModule
+                            isXpModule,
+                            abiList
                         )
                         installedList.add(info)
                     } catch (e: Exception) {
@@ -275,12 +280,18 @@ class AppsRepository {
                         return@forEachIndexed
                     }
                     
+                    // Get ABI information
+                    val sourceFile = File(applicationInfo.sourceDir ?: "")
+                    val abiUtils = if (sourceFile.exists()) AbiUtils(sourceFile) else null
+                    val abiList = abiUtils?.getAbiList() ?: emptySet()
+                    
                     val info = AppInfo(
                         safeLoadAppLabel(applicationInfo),
                         safeLoadAppIcon(applicationInfo), // Remove the !! operator to allow null icons
                         applicationInfo.packageName,
                         applicationInfo.sourceDir ?: "",
-                        isInstalledXpModule(applicationInfo.packageName)
+                        isInstalledXpModule(applicationInfo.packageName),
+                        abiList
                     )
 
                     appInfoList.add(info)
