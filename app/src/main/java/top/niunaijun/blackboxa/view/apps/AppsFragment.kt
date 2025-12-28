@@ -543,23 +543,99 @@ class AppsFragment : Fragment() {
                 return
             }
             
-            // Show ABI information with human-readable names
-            val abiDisplayText = info.abiList.sorted().joinToString("\n") { abi ->
-                when(abi) {
-                    "arm64-v8a" -> "• ARM64 (64-bit)"
-                    "armeabi-v7a" -> "• ARM (32-bit)"
-                    "armeabi" -> "• ARM (legacy)"
-                    "x86_64" -> "• x86-64 (64-bit)"
-                    "x86" -> "• x86 (32-bit)"
-                    else -> "• $abi"
-                }
+            // Get device's current native ABI
+            val deviceAbi = if (BlackBoxCore.is64Bit()) {
+                if (android.os.Build.SUPPORTED_ABIS.contains("arm64-v8a")) "arm64-v8a"
+                else if (android.os.Build.SUPPORTED_ABIS.contains("x86_64")) "x86_64"
+                else android.os.Build.SUPPORTED_ABIS[0]
+            } else {
+                android.os.Build.SUPPORTED_ABIS[0]
             }
             
-            MaterialDialog(requireContext()).show {
-                title(R.string.app_select_abi)
-                message(text = getString(R.string.app_abi_info, "\n$abiDisplayText"))
-                positiveButton(R.string.done)
-            }
+            // Determine which ABI would be used for this app (native or QEMU)
+            val preferredAbi = info.abiList.find { it == deviceAbi } 
+                ?: info.abiList.find { abi ->
+                    // Check for compatible ABIs that can run with QEMU
+                    when (deviceAbi) {
+                        "arm64-v8a" -> abi in listOf("armeabi-v7a", "armeabi", "x86_64", "x86")
+                        "x86_64" -> abi in listOf("x86", "arm64-v8a", "armeabi-v7a", "armeabi")
+                        "armeabi-v7a" -> abi in listOf("armeabi", "x86")
+                        "x86" -> abi in listOf("armeabi-v7a", "armeabi")
+                        else -> false
+                    }
+                }
+                ?: info.abiList.firstOrNull()
+            
+            // Build ABI display list with human-readable names and QEMU indicator
+            val abiArray = info.abiList.sorted().toTypedArray()
+            val abiDisplayNames = abiArray.map { abi ->
+                val readable = when(abi) {
+                    "arm64-v8a" -> "ARM64 (64-bit)"
+                    "armeabi-v7a" -> "ARM (32-bit)"
+                    "armeabi" -> "ARM (legacy)"
+                    "x86_64" -> "x86-64 (64-bit)"
+                    "x86" -> "x86 (32-bit)"
+                    else -> abi
+                }
+                
+                // Determine if this ABI is native or needs QEMU
+                val mode = if (abi == deviceAbi) {
+                    "Native"
+                } else {
+                    val canRunWithQemu = when (deviceAbi) {
+                        "arm64-v8a" -> abi in listOf("armeabi-v7a", "armeabi", "x86_64", "x86")
+                        "x86_64" -> abi in listOf("x86", "arm64-v8a", "armeabi-v7a", "armeabi")
+                        "armeabi-v7a" -> abi in listOf("armeabi", "x86")
+                        "x86" -> abi in listOf("armeabi-v7a", "armeabi")
+                        else -> false
+                    }
+                    if (canRunWithQemu) "QEMU" else "Unsupported"
+                }
+                
+                // Mark the preferred ABI with checkmark
+                val prefix = if (abi == preferredAbi) "✓ " else "  "
+                "$prefix$readable ($mode)"
+            }.toTypedArray()
+            
+            // Create a selection dialog using AlertDialog
+            android.app.AlertDialog.Builder(requireContext())
+                .setTitle(R.string.app_select_abi)
+                .setItems(abiDisplayNames) { _, which ->
+                    val selectedAbi = abiArray[which]
+                    val displayName = when(selectedAbi) {
+                        "arm64-v8a" -> "ARM64 (64-bit)"
+                        "armeabi-v7a" -> "ARM (32-bit)"
+                        "armeabi" -> "ARM (legacy)"
+                        "x86_64" -> "x86-64 (64-bit)"
+                        "x86" -> "x86 (32-bit)"
+                        else -> selectedAbi
+                    }
+                    
+                    val isNative = selectedAbi == deviceAbi
+                    val runMode = if (isNative) "natively" else "via QEMU emulation"
+                    toast(getString(R.string.app_abi_selected_mode, displayName, runMode))
+                    Log.d(TAG, "Selected ABI for ${info.packageName}: $selectedAbi ($runMode)")
+                }
+                .setMessage(getString(R.string.app_abi_device_info, 
+                    when(deviceAbi) {
+                        "arm64-v8a" -> "ARM64 (64-bit)"
+                        "armeabi-v7a" -> "ARM (32-bit)"
+                        "armeabi" -> "ARM (legacy)"
+                        "x86_64" -> "x86-64 (64-bit)"
+                        "x86" -> "x86 (32-bit)"
+                        else -> deviceAbi
+                    },
+                    when(preferredAbi) {
+                        "arm64-v8a" -> "ARM64 (64-bit)"
+                        "armeabi-v7a" -> "ARM (32-bit)"
+                        "armeabi" -> "ARM (legacy)"
+                        "x86_64" -> "x86-64 (64-bit)"
+                        "x86" -> "x86 (32-bit)"
+                        else -> preferredAbi ?: "Unknown"
+                    }
+                ))
+                .setPositiveButton(R.string.done, null)
+                .show()
         } catch (e: Exception) {
             Log.e(TAG, "Error showing ABI selection dialog: ${e.message}")
         }
